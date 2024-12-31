@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es6", // Adjust if you need newer JS features
+    "module": "commonjs",
+    "outDir": "./build",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true, // Allows default imports even if they don't exist
+    "resolveJsonModule": true, // Enables importing JSON files
+    "forceConsistentCasingInFileNames": true // Prevents issues with file name casing
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "tests"]
+}
