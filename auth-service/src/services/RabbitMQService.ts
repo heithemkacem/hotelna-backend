@@ -30,6 +30,8 @@ class RabbitMQService {
     this.channel.consume(this.requestQueue, async (msg) => {
       if (msg && msg.content) {
         const { userId } = JSON.parse(msg.content.toString());
+        console.log(msg);
+        console.log("rabbitMQ user id in the auth", userId);
         const userDetails = await getUserDetails(userId);
 
         // Send the user details response
