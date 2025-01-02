@@ -1,10 +1,13 @@
+
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Profile, IProfile } from "../database/index"; // Profile model
 import { Client, OTP } from "../database/index"; // Client and OTP models
+import bcrypt from "bcryptjs";
 import { ApiError, encryptPassword, isPasswordMatch, successResponse, errorResponse } from "../utils";
 import config from "../config/config";
 import { generateOTP, sendEmail } from '../utils/index';
+const { limit } = config;
 
 const jwtSecret = config.JWT_SECRET as string;
 
@@ -15,13 +18,13 @@ const cookieOptions = {
   secure: config.env === "production", // Ensure cookies are secure in production
   httpOnly: true,
 };
-
+const saltRounds = limit ? Number(limit) : 10; 
 // Utility function to create and send the JWT token
 const createSendToken = async (user: IProfile, res: Response) => {
   const { _id, email, type } = user;
 
   // Create JWT token with a 1-day expiration
-  const token = jwt.sign({ id: _id, email, type }, jwtSecret, { expiresIn: "30" });
+  const token = jwt.sign({ id: _id, email, type }, jwtSecret, { expiresIn: "30d" });
 
   // Send the JWT token as a cookie
   res.cookie("jwt", token, cookieOptions);
@@ -29,25 +32,18 @@ const createSendToken = async (user: IProfile, res: Response) => {
   return token;
 };
 
-
 const register = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-
-    // Check if the user already exists
     const userExists = await Profile.findOne({ email });
     if (userExists) {
-      return res.json({
-        ok: false,
-        status: 'Failed',
-        message: 'Email already exists!',
-      });
+      return res.json({ ok: false, status: 'Failed', message: 'Email already exists!' });
     }
 
-    // Generate OTP
     const otp = generateOTP();
+    const hashedOTP = await bcrypt.hash(otp, saltRounds);
     const otpExpiry = new Date();
-    otpExpiry.setMinutes(otpExpiry.getMinutes() + 3); 
+    otpExpiry.setMinutes(otpExpiry.getMinutes() + 3);
 
     try {
       await sendEmail(email, "OTP for Account Registration", `Your OTP for registration is: ${otp}`);
@@ -55,42 +51,20 @@ const register = async (req: Request, res: Response) => {
       return errorResponse(res, "Failed to send OTP email. Please try again later.");
     }
 
-    // Create the OTP document and save it to the database
-    const otpDoc = await OTP.create({
-      email,
-      otp,
-      type: 'created-account',
-      createdAt: new Date(),
-      expiresAt: otpExpiry,
-    });
+    await OTP.create({ email, otp: hashedOTP, type: 'created-account', createdAt: new Date(), expiresAt: otpExpiry });
 
-    // Create the profile but don't verify it yet
     const profile = await Profile.create({
       email,
       password: await encryptPassword(password),
-      type: 'client', // Setting default type as 'client'
-      isVerified: false, // User is not verified yet
+      type: 'client',
+      isVerified: false,
     });
 
-    // Create a new client document after the profile is created
-    const client = await Client.create({
-      profile: profile._id, // Link the client to the created profile
-      visited_hotels: [], // Initialize visited hotels as an empty array
-      notifications: true, // Default notification setting
-      sounds: true, // Default sound setting
-    });
+    const client = await Client.create({ profile: profile._id, visited_hotels: [], notifications: true, sounds: true });
 
-    // Return success response
-    return successResponse(res, 'Registration successful. Please check your email for the OTP.', {
-      profileId: profile._id, // Optionally return profile ID
-      clientId: client._id,   // Optionally return client ID
-    });
+    return successResponse(res, 'Registration successful. Please check your email for the OTP.', { profileId: profile._id, clientId: client._id });
   } catch (error: any) {
-    return res.status(500).json({
-      ok: false,
-      status: 'Failed',
-      message: error.message,
-    });
+    return res.status(500).json({ ok: false, status: 'Failed', message: error.message });
   }
 };
 
