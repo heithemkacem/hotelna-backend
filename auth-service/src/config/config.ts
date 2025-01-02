@@ -3,7 +3,7 @@ import { config } from "dotenv";
 const configFile = `./.env`;
 config({ path: configFile });
 
-const { MONGO_URI, PORT, JWT_SECRET, NODE_ENV, MESSAGE_BROKER_URL, limit } =
+const { MONGO_URI, PORT, JWT_SECRET, NODE_ENV, MESSAGE_BROKER_URL, limit,RESET_PASSWORD_SECRET } =
   process.env;
 
 export default {
@@ -13,4 +13,5 @@ export default {
   env: NODE_ENV,
   msgBrokerURL: MESSAGE_BROKER_URL,
   limit,
+  RESET_PASSWORD_SECRET
 };

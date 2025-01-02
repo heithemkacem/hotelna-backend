@@ -2,9 +2,11 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { Profile, OTP } from "../database/index";
 import { successResponse, errorResponse, generateOTP } from "../utils";
+import jwt from "jsonwebtoken";
 import config from "../config/config";
 import { rabbitMQService } from "../services/RabbitMQService";
 const { limit } = config;
+const {RESET_PASSWORD_SECRET}=config
 const saltRounds = limit ? Number(limit) : 10;
 // OTP Validation Function
 const validateOTP = async (req: Request, res: Response) => {
@@ -53,6 +55,7 @@ const forgetPassword = async (req: Request, res: Response) => {
     }
 
     const otp = generateOTP();
+    console.log(otp,"forget password");
     const hashedOTP = await bcrypt.hash(otp, saltRounds);
     await rabbitMQService.sendEmailNotification(
       email,
@@ -72,58 +75,77 @@ const forgetPassword = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
-//here if i give any email and a new password the suer password will be reset  to the new password given
-// we need to check if the suer has reset password otp or not
-//u need to check if thos old password is the same as the new password
-//if the old password is the same as the new password then u need to return that the password is the same as the old password
-//if the old password is not the same as the new password then u need to reset the password to the new password
+
 
 const resetPassword = async (req: Request, res: Response) => {
-  try {
-    const { email, newPassword } = req.body;
-
-    const profile = await Profile.findOne({ email });
-
-    if (!profile) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "User not found.",
-      });
+    try {
+      const { newPassword } = req.body;
+  
+      // Extract token from Authorization header
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return errorResponse(res, "Authorization token is missing.", 401);
+      }
+  
+      const token = authHeader.split(" ")[1];  
+      let decoded;
+      try {
+        decoded = jwt.verify(
+          token,
+          process.env.RESET_PASSWORD_SECRET as string
+        ) as { email: string };
+      } catch (err) {
+        return errorResponse(res, "Invalid or expired token.", 401);
+      }
+  
+      const profile = await Profile.findOne({ email: decoded.email });
+      if (!profile) {
+        return errorResponse(res, "User not found.", 404);
+      }
+  
+      profile.password = await bcrypt.hash(newPassword, saltRounds);
+      await profile.save();
+  
+      return successResponse(res, "Password successfully reset.");
+    } catch (error: any) {
+      return errorResponse(res, error.message || "Server error", 500);
     }
-
-    profile.password = await bcrypt.hash(newPassword, saltRounds);
-    await profile.save();
-
-    return successResponse(res, "Password successfully reset.");
-  } catch (error: any) {
-    return errorResponse(res, error.message || "Server error", 500);
-  }
-};
-
+  };
+  
 const validateResetPasswordOTP = async (req: Request, res: Response) => {
-  try {
-    const { email, otp, type } = req.body;
-    const otpRecord = await OTP.findOne({ email, type });
-    if (!otpRecord) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "Invalid OTP or OTP has expired.",
+    try {
+      const { email, otp, type } = req.body;
+      const otpRecord = await OTP.findOne({ email, type });
+  
+      if (!otpRecord) {
+        return res.json({
+          ok: false,
+          status: "Failed",
+          message: "Invalid OTP or OTP has expired.",
+        });
+      }
+  
+      const isMatch = await bcrypt.compare(otp, otpRecord.otp);
+      if (!isMatch) {
+        return res.json({ ok: false, status: "Failed", message: "Invalid OTP." });
+      }
+  
+      // Generate a short-lived JWT token for password reset
+      const resetToken = jwt.sign(
+        { email },
+        process.env.RESET_PASSWORD_SECRET as string,
+        { expiresIn: '15m' }
+      );
+  
+      return successResponse(res, "OTP successfully validated.", {
+        message: "Use this token in the Authorization header to reset your password.",
+        token: resetToken,
       });
+    } catch (error: any) {
+      return errorResponse(res, "Server error", 500);
     }
-
-    const isMatch = await bcrypt.compare(otp, otpRecord.otp);
-    if (!isMatch) {
-      return res.json({ ok: false, status: "Failed", message: "Invalid OTP." });
-    }
-
-    return successResponse(res, "OTP successfully validated.");
-  } catch (error: any) {
-    return errorResponse(res, "Server error", 500);
-  }
-};
-
+  };
+  
 const resendOTP = async (req: Request, res: Response) => {
   try {
     const { email, type } = req.body;
@@ -172,6 +194,7 @@ const resendOTP = async (req: Request, res: Response) => {
 
     // Send the plain text OTP to the user
     const otpBody = `Your OTP for ${type} is: ${otp}`;
+    console.log(otp,'resendOTP')
     await rabbitMQService.sendEmailNotification(email, `${type} OTP`, otpBody);
     return successResponse(res, "A new OTP has been sent to your email.");
   } catch (error: any) {
