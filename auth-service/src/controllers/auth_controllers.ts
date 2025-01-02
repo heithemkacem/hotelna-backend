@@ -49,7 +49,6 @@ const register = async (req: Request, res: Response) => {
     const otpExpiry = new Date();
     otpExpiry.setMinutes(otpExpiry.getMinutes() + 3); 
 
-    
     try {
       await sendEmail(email, "OTP for Account Registration", `Your OTP for registration is: ${otp}`);
     } catch (emailError) {
@@ -73,9 +72,18 @@ const register = async (req: Request, res: Response) => {
       isVerified: false, // User is not verified yet
     });
 
+    // Create a new client document after the profile is created
+    const client = await Client.create({
+      profile: profile._id, // Link the client to the created profile
+      visited_hotels: [], // Initialize visited hotels as an empty array
+      notifications: true, // Default notification setting
+      sounds: true, // Default sound setting
+    });
+
     // Return success response
     return successResponse(res, 'Registration successful. Please check your email for the OTP.', {
       profileId: profile._id, // Optionally return profile ID
+      clientId: client._id,   // Optionally return client ID
     });
   } catch (error: any) {
     return res.status(500).json({
