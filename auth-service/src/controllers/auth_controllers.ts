@@ -49,7 +49,7 @@ const register = async (req: Request, res: Response) => {
     const otpExpiry = new Date();
     otpExpiry.setMinutes(otpExpiry.getMinutes() + 3); 
 
-    // Send OTP to the user's email
+    
     try {
       await sendEmail(email, "OTP for Account Registration", `Your OTP for registration is: ${otp}`);
     } catch (emailError) {
