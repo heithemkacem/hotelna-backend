@@ -72,6 +72,11 @@ const forgetPassword = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
+//here if i give any email and a new password the suer password will be reset  to the new password given
+// we need to check if the suer has reset password otp or not
+//u need to check if thos old password is the same as the new password
+//if the old password is the same as the new password then u need to return that the password is the same as the old password
+//if the old password is not the same as the new password then u need to reset the password to the new password
 
 const resetPassword = async (req: Request, res: Response) => {
   try {
