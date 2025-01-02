@@ -1,10 +1,9 @@
-import mongoose, { Schema, Document } from 'mongoose';
-import bcrypt from 'bcrypt';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IOTP extends Document {
   email: string;
   otp: string;
-  type: 'created-account' | 'reset-password' | 'in-app-change-phone-number';
+  type: "created-account" | "reset-password" | "in-app-change-phone-number";
   createdAt: Date;
 }
 
@@ -13,13 +12,11 @@ const otpSchema = new Schema<IOTP>({
   otp: { type: String, required: true },
   type: {
     type: String,
-    enum: ['created-account', 'reset-password', 'in-app-change-phone-number'],
-    required: true
+    enum: ["created-account", "reset-password", "in-app-change-phone-number"],
+    required: true,
   },
   createdAt: { type: Date, default: Date.now },
 });
 
-
-
-const OTP = mongoose.model<IOTP>('OTP', otpSchema);
+const OTP = mongoose.model<IOTP>("OTP", otpSchema);
 export default OTP;

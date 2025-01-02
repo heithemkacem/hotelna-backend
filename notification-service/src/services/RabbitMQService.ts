@@ -9,7 +9,7 @@ class RabbitMQService {
   private fcmService = new FCMService();
   private emailService = new EmailService();
   private userStatusStore = new UserStatusStore();
-
+  private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
   constructor() {
     this.init();
   }
@@ -17,7 +17,10 @@ class RabbitMQService {
   async init() {
     const connection = await amqp.connect(config.msgBrokerURL!);
     this.channel = await connection.createChannel();
+    await this.channel.assertQueue(config.queue.notifications);
+    await this.channel.assertQueue(this.emailQueue);
     await this.consumeNotification();
+    await this.consumeEmailNotifications();
   }
 
   async consumeNotification() {
@@ -45,6 +48,16 @@ class RabbitMQService {
         }
 
         this.channel.ack(msg); // Acknowledge the message after processing
+      }
+    });
+  }
+  async consumeEmailNotifications() {
+    this.channel.consume(this.emailQueue, async (msg) => {
+      if (msg) {
+        const { to, subject, body } = JSON.parse(msg.content.toString());
+        await this.emailService.sendEmail(to, subject, body);
+        console.log(`Email sent to ${to}`);
+        this.channel.ack(msg);
       }
     });
   }

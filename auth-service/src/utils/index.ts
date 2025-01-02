@@ -1,8 +1,4 @@
 import bcrypt from "bcryptjs";
-import nodemailer from 'nodemailer' ;
-import config from "../config/config";  // Adjust the path accordingly
-
-const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = config;
 
 // Error Handling Class
 class ApiError extends Error {
@@ -64,45 +60,11 @@ const errorResponse = (res: any, message = "", statusCode = 400) => {
   });
 };
 
-
-
-
-
 // Function to generate a 6-digit OTP
 const generateOTP = (): string => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generates a 6-digit OTP
   return otp;
 };
-
-// Function to send OTP email
-const sendEmail = async (email: string, title: string, body: string) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      
-      host: SMTP_HOST,
-        port: Number(SMTP_PORT),
-        auth: {
-          user: SMTP_USER!,
-          pass: SMTP_PASS!,
-      },
-    });
-
-
-    const info = await transporter.sendMail({
-      from: "heithem.kacem@gmail.com",
-      to: email,
-      subject: title,
-      html: body,
-    });
-
-    console.log("Email sent: ", info.response);
-    return info;  // Return the info of the sent email
-  } catch (error:any) {
-    console.error("Error in mailSender:", error.message);
-    throw new Error("Failed to send email");
-  }
-};
-
 
 export {
   ApiError,
@@ -111,5 +73,4 @@ export {
   successResponse,
   errorResponse,
   generateOTP,
-  sendEmail
 };
