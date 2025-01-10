@@ -47,11 +47,11 @@ const register = async (req: Request, res: Response) => {
     const { email, password } = req.body;
     const userExists = await Profile.findOne({ email });
     if (userExists) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "Email already exists!",
-      });
+        return res.json({
+          ok: false,
+          status: "Failed",
+          message: "Email already exists!",
+        });
     }
 
     const otp = generateOTP();
