@@ -4,8 +4,8 @@ import adminRouter from './admin_routes';
 
 const router = express.Router();
 
-// Mount individual route files
-router.use('/admin', adminRouter);
+
+router.use('/', adminRouter);
 
 
 export default router;

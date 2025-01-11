@@ -44,7 +44,8 @@ const createSendToken = async (user: IProfile, res: Response) => {
 
 const register = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password,name } = req.body;
+    console.log(name)
     const userExists = await Profile.findOne({ email });
     if (userExists) {
         return res.json({
@@ -92,12 +93,12 @@ const register = async (req: Request, res: Response) => {
       visited_hotels: [],
       notifications: true,
       sounds: true,
+      name : name
     });
 
     return successResponse(
       res,
-      "Registration successful. Please check your email for the OTP.",
-      { profileId: profile._id, clientId: client._id }
+      "Registration successful. Please check your email for the OTP."
     );
   } catch (error: any) {
     return res

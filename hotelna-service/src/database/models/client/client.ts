@@ -6,14 +6,23 @@ export interface IClient extends Document {
   current_hotel?: mongoose.Types.ObjectId;
   visited_hotels: mongoose.Types.ObjectId[];
   notifications: boolean;
+  name : string;
   sounds: boolean;
   createdAt: Date;
+  blocked:boolean
 }
 
 // Schema Definition
 const clientSchema = new Schema<IClient>({
   profile: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true },
   current_hotel: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' },
+  name : {
+    type:String
+  },
+  blocked: {
+    type:Boolean,
+    default : false
+  },
   visited_hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' }],
   notifications: { type: Boolean, default: true },
   sounds: { type: Boolean, default: true },
