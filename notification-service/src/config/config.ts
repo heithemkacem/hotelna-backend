@@ -13,6 +13,8 @@ const {
   SMTP_PORT = 587,
   SMTP_USER,
   SMTP_PASS,
+  accountSid,
+  authToken,
 } = process.env;
 
 const queue = { notifications: "NOTIFICATIONS" };
@@ -29,5 +31,9 @@ export default {
     port: SMTP_PORT as number,
     user: SMTP_USER,
     pass: SMTP_PASS,
+  },
+  twillio: {
+    accountSid,
+    authToken,
   },
 };

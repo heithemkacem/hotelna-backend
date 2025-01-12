@@ -3,13 +3,16 @@ import config from "../config/config";
 import { FCMService } from "./FCMService";
 import { EmailService } from "./EmailService";
 import { UserStatusStore } from "../utils";
+import { TwillioService } from "./TwillioService";
 
 class RabbitMQService {
   private channel!: Channel;
   private fcmService = new FCMService();
   private emailService = new EmailService();
   private userStatusStore = new UserStatusStore();
+  private twillioService = new TwillioService();
   private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
+  private smsQueue = "SMS_NOTIFICATION_QUEUE";
   constructor() {
     this.init();
   }
@@ -19,8 +22,10 @@ class RabbitMQService {
     this.channel = await connection.createChannel();
     await this.channel.assertQueue(config.queue.notifications);
     await this.channel.assertQueue(this.emailQueue);
+    await this.channel.assertQueue(this.smsQueue);
     await this.consumeNotification();
     await this.consumeEmailNotifications();
+    await this.consumeSMSNotifications();
   }
 
   async consumeNotification() {
@@ -57,6 +62,16 @@ class RabbitMQService {
         const { to, subject, body } = JSON.parse(msg.content.toString());
         await this.emailService.sendEmail(to, subject, body);
         console.log(`Email sent to ${to}`);
+        this.channel.ack(msg);
+      }
+    });
+  }
+  async consumeSMSNotifications() {
+    this.channel.consume(this.smsQueue, async (msg) => {
+      if (msg) {
+        const { to } = JSON.parse(msg.content.toString());
+        await this.twillioService.sendSMS(to);
+        console.log(`SMS sent to ${to}`);
         this.channel.ack(msg);
       }
     });

@@ -7,6 +7,7 @@ class RabbitMQService {
   private requestQueue = "USER_DETAILS_REQUEST";
   private responseQueue = "USER_DETAILS_RESPONSE";
   private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
+  private smsQueue = "SMS_NOTIFICATION_QUEUE";
   private connection!: Connection;
   private channel!: Channel;
 
@@ -22,6 +23,7 @@ class RabbitMQService {
       await this.channel.assertQueue(this.requestQueue);
       await this.channel.assertQueue(this.responseQueue);
       await this.channel.assertQueue(this.emailQueue);
+      await this.channel.assertQueue(this.smsQueue);
       process.on("SIGINT", () => this.shutdown());
       process.on("SIGTERM", () => this.shutdown());
       this.listenForRequests();
@@ -49,6 +51,7 @@ class RabbitMQService {
       }
     });
   }
+
   async sendEmailNotification(to: string, subject: string, body: string) {
     const message = { to, subject, body };
     this.channel.sendToQueue(
@@ -57,7 +60,15 @@ class RabbitMQService {
     );
     console.log("Email notification request sent");
   }
-
+  async sendSMSNotification(to: string) {
+    const message = { to };
+    console.log(message, "message");
+    this.channel.sendToQueue(
+      this.smsQueue,
+      Buffer.from(JSON.stringify(message))
+    );
+    console.log("SMS notification request sent");
+  }
   private async shutdown() {
     try {
       await this.channel.close();
