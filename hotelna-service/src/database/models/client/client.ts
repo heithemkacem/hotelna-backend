@@ -9,6 +9,7 @@ export interface IClient extends Document {
   name : string;
   sounds: boolean;
   createdAt: Date;
+  blocked:boolean
 }
 
 // Schema Definition
@@ -17,6 +18,10 @@ const clientSchema = new Schema<IClient>({
   current_hotel: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' },
   name : {
     type:String
+  },
+  blocked: {
+    type:Boolean,
+    default : false
   },
   visited_hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' }],
   notifications: { type: Boolean, default: true },
@@ -27,4 +32,3 @@ const clientSchema = new Schema<IClient>({
 // Exporting the Model
 const Client = mongoose.model<IClient>('Client', clientSchema);
 export default Client;
-  
