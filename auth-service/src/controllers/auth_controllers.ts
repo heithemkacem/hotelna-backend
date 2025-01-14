@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { Profile, IProfile } from "../database/index"; // Profile model
+import { Profile, IProfile, IClient } from "../database/index"; // Profile model
 import { Client, OTP } from "../database/index"; // Client and OTP models
 import bcrypt from "bcryptjs";
 import {
@@ -13,6 +13,7 @@ import {
 import config from "../config/config";
 import { generateOTP } from "../utils/index";
 import { rabbitMQService } from "../services/RabbitMQService";
+import mongoose from "mongoose";
 const { limit } = config;
 
 const jwtSecret = config.JWT_SECRET as string;
@@ -44,15 +45,16 @@ const createSendToken = async (user: IProfile, res: Response) => {
 
 const register = async (req: Request, res: Response) => {
   try {
-    const { email, password,name } = req.body;
-    console.log(name)
+    const { email, password, name } = req.body;
+    console.log(name);
     const userExists = await Profile.findOne({ email });
+    console.log(userExists);
     if (userExists) {
-        return res.json({
-          ok: false,
-          status: "Failed",
-          message: "Email already exists!",
-        });
+      return res.status(400).json({
+        ok: false,
+        status: "Failed",
+        message: "Email already exists!",
+      });
     }
 
     const otp = generateOTP();
@@ -80,27 +82,28 @@ const register = async (req: Request, res: Response) => {
       createdAt: new Date(),
       expiresAt: otpExpiry,
     });
+    const client = (await Client.create({
+      visited_hotels: [],
+      notifications: true,
+      sounds: true,
+      name: name,
+    })) as IClient;
 
-    const profile = await Profile.create({
+    const profile = (await Profile.create({
       email,
       password: await encryptPassword(password),
       type: "client",
       isVerified: false,
-    });
-
-    const client = await Client.create({
-      profile: profile._id,
-      visited_hotels: [],
-      notifications: true,
-      sounds: true,
-      name : name
-    });
-
+      user_id: client._id,
+    })) as IProfile;
+    client.profile = profile._id as unknown as mongoose.Types.ObjectId;
+    await client.save();
     return successResponse(
       res,
       "Registration successful. Please check your email for the OTP."
     );
   } catch (error: any) {
+    console.log(error);
     return res
       .status(500)
       .json({ ok: false, status: "Failed", message: error.message });
@@ -127,7 +130,7 @@ const login = async (req: Request, res: Response) => {
     if (!profile.isVerified) {
       return res.json({
         ok: false,
-        status: "Failed",
+        status: "Verify",
         message: "Account is not verified. Please verify your email first.",
       });
     }
@@ -136,7 +139,11 @@ const login = async (req: Request, res: Response) => {
     const token = await createSendToken(profile, res);
 
     // Send success response with token
-    return successResponse(res, "User logged in successfully", { token });
+    return successResponse(res, "User logged in successfully", {
+      token,
+      role: profile.type,
+      user_id: profile.user_id,
+    });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }

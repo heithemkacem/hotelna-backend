@@ -13,6 +13,8 @@ class RabbitMQService {
   private twillioService = new TwillioService();
   private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
   private smsQueue = "SMS_NOTIFICATION_QUEUE";
+  private phoneOTPQueue = "PHONE_OTP_NOTIFICATION_QUEUE";
+  private verificationFailedQueue = "VERIFICATION_FAILED_QUEUE";
   constructor() {
     this.init();
   }
@@ -23,9 +25,12 @@ class RabbitMQService {
     await this.channel.assertQueue(config.queue.notifications);
     await this.channel.assertQueue(this.emailQueue);
     await this.channel.assertQueue(this.smsQueue);
+    await this.channel.assertQueue(this.phoneOTPQueue);
+    await this.channel.assertQueue(this.verificationFailedQueue);
     await this.consumeNotification();
     await this.consumeEmailNotifications();
     await this.consumeSMSNotifications();
+    await this.consumePhoneOTPNotifications();
   }
 
   async consumeNotification() {
@@ -75,6 +80,23 @@ class RabbitMQService {
         this.channel.ack(msg);
       }
     });
+  }
+  async consumePhoneOTPNotifications() {
+    this.channel.consume(this.phoneOTPQueue, async (msg) => {
+      if (msg) {
+        const { to, code } = JSON.parse(msg.content.toString());
+        await this.twillioService.verifySMS(to, code);
+        console.log(`SMS sent to ${to}`);
+        this.channel.ack(msg);
+      }
+    });
+  }
+  async sendVerificationFailedNotifications(verification: boolean) {
+    const message = { verification };
+    this.channel.sendToQueue(
+      this.verificationFailedQueue,
+      Buffer.from(JSON.stringify(message))
+    );
   }
 }
 

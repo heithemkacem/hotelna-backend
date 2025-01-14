@@ -26,20 +26,8 @@ const initializeRabbitMQClient = async () => {
 
 initializeRabbitMQClient();
 
-const exitHandler = () => {
-  if (server) {
-    server.close(() => {
-      console.info("Server closed");
-      process.exit(1);
-    });
-  } else {
-    process.exit(1);
-  }
-};
-
 const unexpectedErrorHandler = (error: unknown) => {
   console.error(error);
-  exitHandler();
 };
 
 process.on("uncaughtException", unexpectedErrorHandler);

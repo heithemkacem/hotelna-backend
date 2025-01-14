@@ -5,9 +5,11 @@ import { errorConverter, errorHandler } from "./middleware";
 import { connectDB } from "./database";
 import config from "./config/config";
 import { rabbitMQService } from "./services/RabbitMQService";
-
+import morgan from "morgan";
 const app: Express = express();
 let server: Server;
+
+app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(userRouter);
@@ -31,20 +33,8 @@ const initializeRabbitMQClient = async () => {
 
 initializeRabbitMQClient();
 
-const exitHandler = () => {
-  if (server) {
-    server.close(() => {
-      console.info("Server closed");
-      process.exit(1);
-    });
-  } else {
-    process.exit(1);
-  }
-};
-
 const unexpectedErrorHandler = (error: unknown) => {
   console.error(error);
-  exitHandler();
 };
 
 process.on("uncaughtException", unexpectedErrorHandler);

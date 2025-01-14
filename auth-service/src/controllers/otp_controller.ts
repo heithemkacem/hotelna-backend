@@ -75,6 +75,38 @@ const forgetPassword = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
+const sendPhoneOTP = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+    console.log(phone, "sendPhoneOTP");
+    await rabbitMQService.sendSMSNotification(phone);
+
+    return successResponse(res, "OTP sent to your email for password reset.");
+  } catch (error: any) {
+    console.log(error);
+    return errorResponse(res, error.message || "Server error", 500);
+  }
+};
+const verifyPhoneOTP = async (req: Request, res: Response) => {
+  try {
+    const { phone, code } = req.body;
+    if (!phone || !code) {
+      return errorResponse(res, "Phone or code is required.", 400);
+    }
+    console.log(phone, code, "verifyPhoneOTP");
+    await rabbitMQService.verifyPhoneOTP(phone, code);
+    const verification =
+      (await rabbitMQService.consumeVerificationFailedNotifications()) as any;
+    console.log(verification, "verification");
+    if (verification === false) {
+      return errorResponse(res, "OTP verification failed.", 400);
+    }
+    return successResponse(res, "OTP sent to your email for password reset.");
+  } catch (error: any) {
+    console.log(error);
+    return errorResponse(res, error.message || "Server error", 500);
+  }
+};
 
 const resetPassword = async (req: Request, res: Response) => {
   try {
@@ -207,5 +239,7 @@ export default {
   forgetPassword,
   resendOTP,
   resetPassword,
+  sendPhoneOTP,
   validateResetPasswordOTP,
+  verifyPhoneOTP,
 };

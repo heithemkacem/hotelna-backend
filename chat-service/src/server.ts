@@ -3,10 +3,10 @@ import { Socket, Server as SocketIOServer } from "socket.io";
 import app from "./app";
 import { Message, connectDB } from "./database";
 import config from "./config/config";
-
+import morgan from "morgan";
 let server: Server;
 connectDB();
-
+app.use(morgan("dev"));
 server = app.listen(config.PORT, () => {
   console.log(`Server is running on port ${config.PORT}`);
 });
@@ -30,20 +30,8 @@ io.on("connection", (socket: Socket) => {
   });
 });
 
-const exitHandler = () => {
-  if (server) {
-    server.close(() => {
-      console.info("Server closed");
-      process.exit(1);
-    });
-  } else {
-    process.exit(1);
-  }
-};
-
 const unexpectedErrorHandler = (error: unknown) => {
   console.error(error);
-  exitHandler();
 };
 
 process.on("uncaughtException", unexpectedErrorHandler);
