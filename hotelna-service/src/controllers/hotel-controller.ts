@@ -317,3 +317,35 @@ export const getServiceRequestsForHotel = async (req: any, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
+export const updateHotelPosition = async (req: any, res: Response) => {
+  try {
+    const hotelId = req.user.client.id; // Hotel ID from the logged-in user
+    const { lat, long } = req.body; // Latitude and Longitude from the request body
+
+    // Validation
+    if (!lat || !long) {
+      return errorResponse(res, "Latitude and Longitude are required", 400);
+    }
+
+    // Update the hotel position
+    const updatedHotel = await Hotel.findByIdAndUpdate(
+      hotelId,
+      { "coordinates.lat": lat, "coordinates.long": long },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedHotel) {
+      return errorResponse(res, "Hotel not found", 404);
+    }
+
+    return successResponse(res, "Hotel position updated successfully", {
+      hotel: {
+        id: updatedHotel._id,
+        name: updatedHotel.name,
+        coordinates: updatedHotel.coordinates,
+      },
+    });
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Server error", 500);
+  }
+};

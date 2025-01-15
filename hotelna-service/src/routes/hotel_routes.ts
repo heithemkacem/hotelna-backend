@@ -1,5 +1,5 @@
 import express from "express";
-import { addExistingServiceToHotel, deleteServiceFromHotel, getClientsInHotel, getHotelByCode, getHotelCoordinates, getHotelServices, getHotelServicesloggedIn, getServiceRequestsForHotel, updateServiceStatus } from "../controllers/hotel-controller";
+import { addExistingServiceToHotel, deleteServiceFromHotel, getClientsInHotel, getHotelByCode, getHotelCoordinates, getHotelServices, getHotelServicesloggedIn, getServiceRequestsForHotel, updateHotelPosition, updateServiceStatus } from "../controllers/hotel-controller";
 import { verifyToken } from "../middleware";
 
 
@@ -17,3 +17,4 @@ router.get("/hotel/services/logged-in",verifyToken,getHotelServicesloggedIn)
 router.post('/services/update-status',verifyToken,updateServiceStatus)
 router.delete('/unactif-service',verifyToken,deleteServiceFromHotel)
 router.get("/hotel/serices-requests",verifyToken,getServiceRequestsForHotel)
+router.post('/hotel/udpate-position',verifyToken,updateHotelPosition)
