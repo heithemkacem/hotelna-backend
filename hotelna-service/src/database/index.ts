@@ -5,6 +5,7 @@ import Hotel, { IHotel } from "./models/hotel/hotel";
 import OTP, { IOTP } from "./models/otp/otp";
 import { connectDB } from "./connection";
 import Service from "./models/service/service";
+import Settings from "./models/settings/settings";
 
 export {
   Profile,
@@ -18,5 +19,6 @@ export {
   OTP,
   IOTP,
   connectDB,
-  Service
+  Service,
+  Settings
 };

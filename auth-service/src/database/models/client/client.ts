@@ -19,8 +19,6 @@ const clientSchema = new Schema<IClient>({
     type:String
   },
   visited_hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' }],
-  notifications: { type: Boolean, default: true },
-  sounds: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });
 

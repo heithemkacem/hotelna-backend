@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import {Client, Hotel,Profile} from '../database/index';
+import {Client, Hotel,Profile, Settings} from '../database/index';
 import { successResponse,errorResponse } from '../utils';
 import QRCode from 'qrcode';
 import bcrypt from 'bcrypt';
@@ -109,6 +109,17 @@ export const createHotel = async (req: Request, res: Response) => {
       isVerified: true,
     });
 
+    // Create settings for the hotel profile
+    await Settings.create({
+      user: hotelProfile._id,
+      userType: 'Hotel',
+      notification: true,
+      emailNotification: true,
+      bookingUpdate: true,
+      newMessage: true,
+      marketing: true,
+    });
+
     // Create the new hotel document
     const newHotel = await Hotel.create({
       profile: hotelProfile._id,
@@ -135,6 +146,7 @@ export const createHotel = async (req: Request, res: Response) => {
     return errorResponse(res, 'Failed to create hotel', 500);
   }
 };
+
 // Edit Hotel
 export const editHotelByKey = async (req: Request, res: Response) => {
   try {

@@ -9,6 +9,7 @@ export interface IProfile extends Document {
   user?: mongoose.Types.ObjectId;
   isVerified: boolean;
   createdAt: Date;
+  loginHistory: string[]; 
 }
 
 // Schema Definition
@@ -22,7 +23,8 @@ const profileSchema = new Schema<IProfile>({
     required: true
   },
   isVerified: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  loginHistory: { type: [String], default: [] },
 });
 
 // Exporting the Model

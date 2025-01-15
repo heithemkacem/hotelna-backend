@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 // Interface for TypeScript typing
 export interface IClient extends Document {
   profile: mongoose.Types.ObjectId;
+  _id: mongoose.Types.ObjectId;
   current_hotel?: mongoose.Types.ObjectId;
   visited_hotels: mongoose.Types.ObjectId[];
   notifications: boolean;

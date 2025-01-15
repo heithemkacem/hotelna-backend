@@ -1,6 +1,7 @@
 import { ErrorRequestHandler } from "express";
 import { ApiError } from "../utils";
-
+import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 export const errorConverter: ErrorRequestHandler = (err, req, res, next) => {
   let error = err;
   if (!(error instanceof ApiError)) {
@@ -38,4 +39,37 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
   res.status(statusCode).json(response);
   next();
+};
+
+
+// Define an interface for req.user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { id: string };
+    }
+  }
+}
+
+export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Get the token from the Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Access token is missing or invalid.' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+   
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+
+   
+    req.user = { id: decoded.id };
+
+    next(); 
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return res.status(403).json({ message: 'Invalid or expired token.' });
+  }
 };
