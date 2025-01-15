@@ -122,9 +122,10 @@ const enterHotel = async (req: any, res: Response) => {
 export const requestService = async (req: Request, res: Response) => {
   try {
     const { hotelKey, roomNumber, serviceKey, message } = req.body;
-    let user :any = req.user
-    const  clientId = user.client.id
-console.log(clientId)
+    let user: any = req.user;
+    const clientId = user.client.id;
+    const profileId = user.profile.id;
+
     // Find the hotel by its unique key
     const hotel = await Hotel.findOne({ key: hotelKey });
     if (!hotel) {
@@ -132,10 +133,14 @@ console.log(clientId)
     }
 
     // Find the client by their ID and ensure they are in the correct hotel
-    const client:any = await Client.findById(clientId);
-    console.log(client)
+    const client: any = await Client.findById(clientId);
     if (!client || client?.current_hotel.toString() !== hotel._id.toString()) {
       return errorResponse(res, "Client not found in this hotel", 404);
+    }
+
+    const clientProfile = await Profile.findById(profileId);
+    if (!clientProfile) {
+      return errorResponse(res, "Client not found", 404);
     }
 
     const service = await Service.findOne({ key: serviceKey });
@@ -145,7 +150,7 @@ console.log(clientId)
 
     // Check if the service has status 'dispo'
     const serviceInHotel = hotel.services.find(
-      (entry: any) => entry.service.toString() === service._id.toString() && entry.status === 'dispo'
+      (entry: any) => entry.service.toString() === service._id.toString() && entry.status === "dispo"
     );
     if (!serviceInHotel) {
       return errorResponse(res, "Service is not available at the moment", 400);
@@ -158,11 +163,16 @@ console.log(clientId)
       service: service._id,
       roomNumber,
       message,
-      status: 'pending', // Default status
+      status: "pending", // Default status
     });
 
     // Save the service request
     await serviceRequest.save();
+
+    // Update client's login history
+    const historyMessage = `Requested service '${service.name}' for room number ${roomNumber}. Message: "${message}".`;
+    clientProfile.loginHistory.push(historyMessage);
+    await clientProfile.save();
 
     // Return the created service request
     return successResponse(res, "Service request submitted successfully", {
@@ -171,10 +181,98 @@ console.log(clientId)
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }
+  
 };
+export const searchPeopleInSameHotel = async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.profile.id; // Assuming the user's ID is stored in `req.user.id`
+    const { name } = req.query; // Get the name filter from query parameters
+    
+    // Find the client associated with the logged-in user
+    const client = await Client.findOne({ profile: userId });
+    if (!client) {
+      return errorResponse(res, 'Client not found', 404);
+    }
+
+    // Ensure the client is currently in a hotel
+    if (!client.current_hotel) {
+      return errorResponse(res, 'You are not checked into any hotel', 400);
+    }
+
+    // Get the hotel ID
+    const hotelId = client.current_hotel;
+
+    // Construct the search query
+    const searchQuery: any = { 
+      current_hotel: hotelId, 
+      _id: { $ne: client._id } // Exclude the current user
+    };
+
+    // If a name is provided, add it to the search criteria
+    if (name) {
+      searchQuery.name = new RegExp(name as string, 'i'); // Case-insensitive search
+    }
+
+    // Find clients matching the query
+    const clients = await Client.find(searchQuery).populate({
+      path: 'profile',
+      select: 'name email phone', // Select specific fields from profile
+    });
+
+    // Format the response
+    const people = clients.map((client: any) => ({
+      name: client.name,
+      email: client.profile?.email || 'N/A',
+      phone: client.profile?.phone || 'N/A',
+    }));
+
+    return successResponse(res, 'People in the same hotel retrieved successfully', { people });
+  } catch (error: any) {
+    return errorResponse(res, error.message || 'Server error', 500);
+  }
+};
+const getClientDetails = async (req: Request, res: Response) => {
+  try {
+    // Extract clientId from the request body
+    const { clientId } = req.body;
+
+    // Validate clientId
+    if (!mongoose.Types.ObjectId.isValid(clientId)) {
+      return errorResponse(res, "Invalid client ID", 400);
+    }
+
+    // Find the client by the clientId and populate the necessary fields
+    const client:any = await Client.findById(clientId)
+      .populate('profile', 'email phone type') // Populating profile fields
+      .populate('current_hotel', 'name location coordinates') // Populating current hotel fields
+      .populate('visited_hotels', 'name location coordinates'); // Populating visited hotels fields
+
+    if (!client) {
+      return errorResponse(res, "Client not found", 404);
+    }
+
+    // Return the client details with profile, current hotel, and visited hotels information
+    return successResponse(res, "Client details fetched successfully", {
+      client: {
+        name: client.name,
+        current_hotel: client.current_hotel,
+      },
+      profile: {
+        email: client.profile?.email,
+        phone: client.profile?.phone,
+        type: client.profile?.type,
+      },
+      visited_hotels: client.visited_hotels,
+    });
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Server error", 500);
+  }
+};
+
 export default {
   changePassword,
   viewLoginHistory,
   enterHotel,
-  requestService
+  requestService,
+  getClientDetails
 };

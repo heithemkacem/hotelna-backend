@@ -98,6 +98,7 @@ export const createHotel = async (req: Request, res: Response) => {
 
     // Generate a password for the hotel profile
     const rawPassword = generatePassword();
+    console.log(rawPassword)
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     // Create a unique email for the hotel

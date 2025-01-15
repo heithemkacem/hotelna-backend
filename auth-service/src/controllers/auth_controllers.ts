@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { Profile, IProfile, IClient } from "../database/index"; // Profile model
+import { Profile, IProfile, IClient, Hotel } from "../database/index"; // Profile model
 import { Client, OTP } from "../database/index"; // Client and OTP models
 import bcrypt from "bcryptjs";
 import {
@@ -162,16 +162,25 @@ const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Retrieve the associated client data
-    const client = await Client.findOne({ profile: profile._id });
-
-    // If no associated client is found, throw an error
-    if (!client) {
-      throw new ApiError(404, "Client data not found.");
+    // Check user type and retrieve the associated data (Client or Hotel)
+    let user:any;
+    if (profile.type === 'client') {
+      user = await Client.findOne({ profile: profile._id });
+      if (!user) {
+        throw new ApiError(404, "Client data not found.");
+      }
+    } else if (profile.type === 'hotel') {
+      user = await Hotel.findOne({ profile: profile._id });
+      if (!user) {
+        throw new ApiError(404, "Hotel data not found.");
+      }
+    } else {
+      throw new ApiError(400, "Invalid user type.");
     }
 
     // Create JWT token and send it in a cookie
-    const token = await createSendToken(profile, client, res);
+    const token = await createSendToken(profile, user, res);
+    console.log(token)
 
     // Send success response with the token
     return successResponse(res, "User logged in successfully", { token });
@@ -179,8 +188,6 @@ const login = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
-
-
 export default {
   register,
   login,
