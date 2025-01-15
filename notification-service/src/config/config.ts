@@ -15,6 +15,7 @@ const {
   SMTP_PASS,
   accountSid,
   authToken,
+  EXPO_ACCESS_TOKEN,
 } = process.env;
 
 const queue = { notifications: "NOTIFICATIONS" };
@@ -36,4 +37,5 @@ export default {
     accountSid,
     authToken,
   },
+  EXPO_ACCESS_TOKEN,
 };

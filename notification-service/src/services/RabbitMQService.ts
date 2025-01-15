@@ -1,13 +1,13 @@
 import amqp, { Channel } from "amqplib";
 import config from "../config/config";
-import { FCMService } from "./FCMService";
+import { ExpoPushService } from "./ExpoPushService";
 import { EmailService } from "./EmailService";
 import { UserStatusStore } from "../utils";
 import { TwillioService } from "./TwillioService";
 
 class RabbitMQService {
   private channel!: Channel;
-  private fcmService = new FCMService();
+  private expoPushService = new ExpoPushService();
   private emailService = new EmailService();
   private userStatusStore = new UserStatusStore();
   private twillioService = new TwillioService();
@@ -15,6 +15,7 @@ class RabbitMQService {
   private smsQueue = "SMS_NOTIFICATION_QUEUE";
   private phoneOTPQueue = "PHONE_OTP_NOTIFICATION_QUEUE";
   private verificationFailedQueue = "VERIFICATION_FAILED_QUEUE";
+  private sendNotificationQueue = "SEND_NOTIFICATION_QUEUE";
   constructor() {
     this.init();
   }
@@ -27,10 +28,12 @@ class RabbitMQService {
     await this.channel.assertQueue(this.smsQueue);
     await this.channel.assertQueue(this.phoneOTPQueue);
     await this.channel.assertQueue(this.verificationFailedQueue);
+    await this.channel.assertQueue(this.sendNotificationQueue);
     await this.consumeNotification();
     await this.consumeEmailNotifications();
     await this.consumeSMSNotifications();
     await this.consumePhoneOTPNotifications();
+    await this.consumeSendNotification();
   }
 
   async consumeNotification() {
@@ -46,7 +49,16 @@ class RabbitMQService {
 
           if (isUserOnline && userToken) {
             // User is online, send a push notification
-            await this.fcmService.sendPushNotification(userToken, message);
+            await this.expoPushService.sendPushNotification(
+              userToken,
+              "A new message from " + fromName,
+              message,
+              {
+                type: "MESSAGE_RECEIVED",
+                fromName,
+                message,
+              }
+            );
           } else if (userEmail) {
             // User is offline, send an email
             await this.emailService.sendEmail(
@@ -97,6 +109,15 @@ class RabbitMQService {
       this.verificationFailedQueue,
       Buffer.from(JSON.stringify(message))
     );
+  }
+  async consumeSendNotification() {
+    this.channel.consume(this.sendNotificationQueue, async (msg) => {
+      if (msg) {
+        const { to, title, body, data } = JSON.parse(msg.content.toString());
+        await this.expoPushService.sendPushNotification(to, title, body, data);
+        this.channel.ack(msg);
+      }
+    });
   }
 }
 

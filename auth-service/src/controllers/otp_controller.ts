@@ -68,11 +68,20 @@ const forgetPassword = async (req: Request, res: Response) => {
 };
 const sendPhoneOTP = async (req: Request, res: Response) => {
   try {
-    const { phone } = req.body;
+    const { phone, email } = req.body;
+    const profile = await Profile.findOne({ email });
+    if (!profile) {
+      return errorResponse(res, "User not found.", 404);
+    }
+    if (profile.isPhoneVerified) {
+      return errorResponse(res, "Phone already verified.", 400);
+    }
+    if (profile.phone) {
+      return errorResponse(res, "Phone already exists.", 400);
+    }
     console.log(phone, "sendPhoneOTP");
     await rabbitMQService.sendSMSNotification(phone);
-
-    return successResponse(res, "OTP sent to your email for password reset.");
+    return successResponse(res, "OTP sent to your phone for verification.");
   } catch (error: any) {
     console.log(error);
     return errorResponse(res, error.message || "Server error", 500);
@@ -80,7 +89,7 @@ const sendPhoneOTP = async (req: Request, res: Response) => {
 };
 const verifyPhoneOTP = async (req: Request, res: Response) => {
   try {
-    const { phone, code } = req.body;
+    const { email, phone, code } = req.body;
     if (!phone || !code) {
       return errorResponse(res, "Phone or code is required.", 400);
     }
@@ -89,7 +98,15 @@ const verifyPhoneOTP = async (req: Request, res: Response) => {
     if (verification === false) {
       return errorResponse(res, "OTP verification failed.", 400);
     }
-    return successResponse(res, "OTP sent to your email for password reset.");
+    const profile = await Profile.findOne({ email });
+    if (!profile) {
+      return errorResponse(res, "User not found.", 404);
+    }
+
+    profile.isPhoneVerified = true;
+    profile.phone = phone;
+    await profile.save();
+    return successResponse(res, "Phone successfully verified.");
   } catch (error: any) {
     console.log(error);
     return errorResponse(res, error.message || "Server error", 500);

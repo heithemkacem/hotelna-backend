@@ -10,6 +10,7 @@ export interface IProfile extends Document {
   isVerified: boolean;
   createdAt: Date;
   user_id: mongoose.Schema.Types.ObjectId;
+  isPhoneVerified: boolean;
 }
 
 // Schema Definition
@@ -17,6 +18,7 @@ const profileSchema = new Schema<IProfile>({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // Added password field
   phone: { type: String },
+  isPhoneVerified: { type: Boolean, default: false },
   type: {
     type: String,
     enum: ["client", "hotel", "admin"],
