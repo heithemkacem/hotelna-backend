@@ -2,8 +2,6 @@ import amqp, { Channel, Connection } from "amqplib";
 import config from "../config/config";
 
 class RabbitMQService {
-  private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
-  private sendNotificationQueue = "SEND_NOTIFICATION_QUEUE";
   private connection!: Connection;
   private channel!: Channel;
 
@@ -15,8 +13,8 @@ class RabbitMQService {
     try {
       this.connection = await amqp.connect(config.msgBrokerURL!);
       this.channel = await this.connection.createChannel();
-      await this.channel.assertQueue(this.emailQueue);
-      await this.channel.assertQueue(this.sendNotificationQueue);
+      await this.channel.assertQueue(config.queue.emailQueue);
+      await this.channel.assertQueue(config.queue.sendNotificationQueue);
       process.on("SIGINT", () => this.shutdown());
       process.on("SIGTERM", () => this.shutdown());
     } catch (error) {
@@ -26,7 +24,7 @@ class RabbitMQService {
   async sendEmailNotification(to: string, subject: string, body: string) {
     const message = { to, subject, body };
     this.channel.sendToQueue(
-      this.emailQueue,
+      config.queue.emailQueue,
       Buffer.from(JSON.stringify(message))
     );
     console.log("Email notification request sent");
@@ -34,7 +32,7 @@ class RabbitMQService {
   async sendNotification(to: string, title: string, body: string) {
     const message = { to, title, body };
     this.channel.sendToQueue(
-      this.sendNotificationQueue,
+      config.queue.sendNotificationQueue,
       Buffer.from(JSON.stringify(message))
     );
     console.log("Notification request sent");

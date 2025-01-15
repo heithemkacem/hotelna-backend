@@ -9,13 +9,8 @@ class RabbitMQService {
   private channel!: Channel;
   private expoPushService = new ExpoPushService();
   private emailService = new EmailService();
-  private userStatusStore = new UserStatusStore();
   private twillioService = new TwillioService();
-  private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
-  private smsQueue = "SMS_NOTIFICATION_QUEUE";
-  private phoneOTPQueue = "PHONE_OTP_NOTIFICATION_QUEUE";
-  private verificationFailedQueue = "VERIFICATION_FAILED_QUEUE";
-  private sendNotificationQueue = "SEND_NOTIFICATION_QUEUE";
+
   constructor() {
     this.init();
   }
@@ -24,15 +19,12 @@ class RabbitMQService {
     const connection = await amqp.connect(config.msgBrokerURL!);
     this.channel = await connection.createChannel();
     await this.channel.assertQueue(config.queue.notifications);
-    await this.channel.assertQueue(this.emailQueue);
-    await this.channel.assertQueue(this.smsQueue);
-    await this.channel.assertQueue(this.phoneOTPQueue);
-    await this.channel.assertQueue(this.verificationFailedQueue);
-    await this.channel.assertQueue(this.sendNotificationQueue);
+    await this.channel.assertQueue(config.queue.emailQueue);
+    await this.channel.assertQueue(config.queue.smsQueue);
+    await this.channel.assertQueue(config.queue.sendNotificationQueue);
     await this.consumeNotification();
     await this.consumeEmailNotifications();
     await this.consumeSMSNotifications();
-    await this.consumePhoneOTPNotifications();
     await this.consumeSendNotification();
   }
 
@@ -44,11 +36,7 @@ class RabbitMQService {
           JSON.parse(msg.content.toString());
 
         if (type === "MESSAGE_RECEIVED") {
-          // Check if the user is online
-          const isUserOnline = this.userStatusStore.isUserOnline(userId);
-
-          if (isUserOnline && userToken) {
-            // User is online, send a push notification
+          if (userToken) {
             await this.expoPushService.sendPushNotification(
               userToken,
               "A new message from " + fromName,
@@ -74,7 +62,7 @@ class RabbitMQService {
     });
   }
   async consumeEmailNotifications() {
-    this.channel.consume(this.emailQueue, async (msg) => {
+    this.channel.consume(config.queue.emailQueue, async (msg) => {
       if (msg) {
         const { to, subject, body } = JSON.parse(msg.content.toString());
         await this.emailService.sendEmail(to, subject, body);
@@ -84,34 +72,18 @@ class RabbitMQService {
     });
   }
   async consumeSMSNotifications() {
-    this.channel.consume(this.smsQueue, async (msg) => {
+    this.channel.consume(config.queue.smsQueue, async (msg) => {
       if (msg) {
-        const { to } = JSON.parse(msg.content.toString());
-        await this.twillioService.sendSMS(to);
+        const { to, message } = JSON.parse(msg.content.toString());
+        await this.twillioService.sendSMS(to, message);
         console.log(`SMS sent to ${to}`);
         this.channel.ack(msg);
       }
     });
   }
-  async consumePhoneOTPNotifications() {
-    this.channel.consume(this.phoneOTPQueue, async (msg) => {
-      if (msg) {
-        const { to, code } = JSON.parse(msg.content.toString());
-        await this.twillioService.verifySMS(to, code);
-        console.log(`SMS sent to ${to}`);
-        this.channel.ack(msg);
-      }
-    });
-  }
-  async sendVerificationFailedNotifications(verification: boolean) {
-    const message = { verification };
-    this.channel.sendToQueue(
-      this.verificationFailedQueue,
-      Buffer.from(JSON.stringify(message))
-    );
-  }
+
   async consumeSendNotification() {
-    this.channel.consume(this.sendNotificationQueue, async (msg) => {
+    this.channel.consume(config.queue.sendNotificationQueue, async (msg) => {
       if (msg) {
         const { to, title, body, data } = JSON.parse(msg.content.toString());
         await this.expoPushService.sendPushNotification(to, title, body, data);

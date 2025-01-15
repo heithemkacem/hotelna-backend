@@ -3,8 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 import config from "../config/config";
 
 class RabbitMQService {
-  private requestQueue = "USER_DETAILS_REQUEST";
-  private responseQueue = "USER_DETAILS_RESPONSE";
   private correlationMap = new Map();
   private channel!: Channel;
 
@@ -15,11 +13,11 @@ class RabbitMQService {
   async init() {
     const connection = await amqp.connect(config.msgBrokerURL!);
     this.channel = await connection.createChannel();
-    await this.channel.assertQueue(this.requestQueue);
-    await this.channel.assertQueue(this.responseQueue);
+    await this.channel.assertQueue(config.queue.requestQueue);
+    await this.channel.assertQueue(config.queue.responseQueue);
 
     this.channel.consume(
-      this.responseQueue,
+      config.queue.responseQueue,
       (msg) => {
         if (msg) {
           const correlationId = msg.properties.correlationId;
@@ -40,7 +38,7 @@ class RabbitMQService {
     const correlationId = uuidv4();
     this.correlationMap.set(correlationId, callback);
     this.channel.sendToQueue(
-      this.requestQueue,
+      config.queue.requestQueue,
       Buffer.from(JSON.stringify({ userId })),
       { correlationId }
     );

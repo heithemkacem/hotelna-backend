@@ -6,7 +6,11 @@ config({ path: configFile });
 const { MONGO_URI, PORT, JWT_SECRET, NODE_ENV, MESSAGE_BROKER_URL } =
   process.env;
 
-const queue = { notifications: "NOTIFICATIONS" };
+const queue = {
+  notifications: "NOTIFICATIONS",
+  requestQueue: "USER_DETAILS_REQUEST",
+  responseQueue: "USER_DETAILS_RESPONSE",
+};
 
 export default {
   MONGO_URI,

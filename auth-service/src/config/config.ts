@@ -14,6 +14,12 @@ const {
   accountSid,
   authToken,
 } = process.env;
+const queue = {
+  requestQueue: "USER_DETAILS_REQUEST",
+  responseQueue: "USER_DETAILS_RESPONSE",
+  emailQueue: "EMAIL_NOTIFICATION_QUEUE",
+  smsQueue: "SMS_NOTIFICATION_QUEUE",
+};
 
 export default {
   MONGO_URI,
@@ -27,4 +33,5 @@ export default {
     accountSid,
     authToken,
   },
+  queue,
 };

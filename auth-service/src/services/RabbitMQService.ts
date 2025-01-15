@@ -4,10 +4,6 @@ import { Profile } from "../database";
 import { ApiError } from "../utils";
 
 class RabbitMQService {
-  private requestQueue = "USER_DETAILS_REQUEST";
-  private responseQueue = "USER_DETAILS_RESPONSE";
-  private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
-  private smsQueue = "SMS_NOTIFICATION_QUEUE";
   private connection!: Connection;
   private channel!: Channel;
 
@@ -20,10 +16,10 @@ class RabbitMQService {
       this.connection = await amqp.connect(config.msgBrokerURL!);
       this.channel = await this.connection.createChannel();
 
-      await this.channel.assertQueue(this.requestQueue);
-      await this.channel.assertQueue(this.responseQueue);
-      await this.channel.assertQueue(this.emailQueue);
-      await this.channel.assertQueue(this.smsQueue);
+      await this.channel.assertQueue(config.queue.requestQueue);
+      await this.channel.assertQueue(config.queue.responseQueue);
+      await this.channel.assertQueue(config.queue.emailQueue);
+      await this.channel.assertQueue(config.queue.smsQueue);
       process.on("SIGINT", () => this.shutdown());
       process.on("SIGTERM", () => this.shutdown());
       this.listenForRequests();
@@ -32,7 +28,7 @@ class RabbitMQService {
     }
   }
   private async listenForRequests() {
-    this.channel.consume(this.requestQueue, async (msg) => {
+    this.channel.consume(config.queue.requestQueue, async (msg) => {
       if (msg && msg.content) {
         const { userId } = JSON.parse(msg.content.toString());
         console.log(msg);
@@ -41,7 +37,7 @@ class RabbitMQService {
 
         // Send the user details response
         this.channel.sendToQueue(
-          this.responseQueue,
+          config.queue.responseQueue,
           Buffer.from(JSON.stringify(userDetails)),
           { correlationId: msg.properties.correlationId }
         );
@@ -55,7 +51,7 @@ class RabbitMQService {
   async sendEmailNotification(to: string, subject: string, body: string) {
     const message = { to, subject, body };
     this.channel.sendToQueue(
-      this.emailQueue,
+      config.queue.emailQueue,
       Buffer.from(JSON.stringify(message))
     );
     console.log("Email notification request sent");
@@ -64,7 +60,7 @@ class RabbitMQService {
     const message = { to };
     console.log(message, "message");
     this.channel.sendToQueue(
-      this.smsQueue,
+      config.queue.smsQueue,
       Buffer.from(JSON.stringify(message))
     );
     console.log("SMS notification request sent");

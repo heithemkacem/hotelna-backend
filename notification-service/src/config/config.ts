@@ -18,7 +18,12 @@ const {
   EXPO_ACCESS_TOKEN,
 } = process.env;
 
-const queue = { notifications: "NOTIFICATIONS" };
+const queue = {
+  notifications: "NOTIFICATIONS",
+  emailQueue: "EMAIL_NOTIFICATION_QUEUE",
+  smsQueue: "SMS_NOTIFICATION_QUEUE",
+  sendNotificationQueue: "SEND_NOTIFICATION_QUEUE",
+};
 
 export default {
   PORT,
