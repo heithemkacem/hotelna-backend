@@ -132,6 +132,7 @@ const login = async (req: Request, res: Response) => {
         ok: false,
         status: "Verify",
         message: "Account is not verified. Please verify your email first.",
+        email: profile.email,
       });
     }
 

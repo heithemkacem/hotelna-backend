@@ -60,9 +60,9 @@ const errorResponse = (res: any, message = "", statusCode = 400) => {
   });
 };
 
-// Function to generate a 6-digit OTP
+// Function to generate a 4-digit OTP
 const generateOTP = (): string => {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generates a 6-digit OTP
+  const otp = Math.floor(1000 + Math.random() * 9000).toString(); // Generates a 4-digit OTP
   return otp;
 };
 

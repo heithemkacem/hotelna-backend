@@ -8,6 +8,8 @@ userRouter.post("/register", AuthController.register as any);
 userRouter.post("/login", AuthController.login as any);
 //verify profile
 userRouter.post("/validate", OtpController.validateOTP as any);
+//resend otp
+userRouter.post("/resend-email-otp", OtpController.resendOTP as any);
 userRouter.post("/forget-password", OtpController.forgetPassword as any);
 userRouter.post("/reset-password", OtpController.resetPassword as any);
 //verifiy password request

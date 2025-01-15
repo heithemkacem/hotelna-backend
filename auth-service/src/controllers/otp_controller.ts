@@ -5,34 +5,29 @@ import { successResponse, errorResponse, generateOTP } from "../utils";
 import jwt from "jsonwebtoken";
 import config from "../config/config";
 import { rabbitMQService } from "../services/RabbitMQService";
+import { TwillioService } from "../services";
 const { limit } = config;
-const { RESET_PASSWORD_SECRET } = config;
 const saltRounds = limit ? Number(limit) : 10;
 // OTP Validation Function
+const twillioService = new TwillioService();
 const validateOTP = async (req: Request, res: Response) => {
   try {
     const { email, otp, type } = req.body;
-    const otpRecord = await OTP.findOne({ email, type });
+    const otpRecord = await OTP.findOne({ email, type }).sort({
+      createdAt: -1,
+    });
     if (!otpRecord) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "Invalid OTP or OTP has expired.",
-      });
+      return errorResponse(res, "Invalid OTP or OTP has expired.", 400);
     }
 
     const isMatch = await bcrypt.compare(otp, otpRecord.otp);
     if (!isMatch) {
-      return res.json({ ok: false, status: "Failed", message: "Invalid OTP." });
+      return errorResponse(res, "Invalid OTP.", 400);
     }
 
     const profile = await Profile.findOne({ email });
     if (!profile) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "User not found.",
-      });
+      return errorResponse(res, "User not found.", 404);
     }
 
     profile.isVerified = true;
@@ -47,11 +42,7 @@ const forgetPassword = async (req: Request, res: Response) => {
     const { email } = req.body;
     const profile = await Profile.findOne({ email });
     if (!profile) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "Email does not exist.",
-      });
+      return errorResponse(res, "Email does not exist.", 404);
     }
 
     const otp = generateOTP();
@@ -94,10 +85,7 @@ const verifyPhoneOTP = async (req: Request, res: Response) => {
       return errorResponse(res, "Phone or code is required.", 400);
     }
     console.log(phone, code, "verifyPhoneOTP");
-    await rabbitMQService.verifyPhoneOTP(phone, code);
-    const verification =
-      (await rabbitMQService.consumeVerificationFailedNotifications()) as any;
-    console.log(verification, "verification");
+    const verification = await twillioService.verifySMS(phone, code);
     if (verification === false) {
       return errorResponse(res, "OTP verification failed.", 400);
     }
@@ -110,26 +98,9 @@ const verifyPhoneOTP = async (req: Request, res: Response) => {
 
 const resetPassword = async (req: Request, res: Response) => {
   try {
-    const { newPassword } = req.body;
+    const { newPassword, email } = req.body;
 
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return errorResponse(res, "Authorization token is missing.", 401);
-    }
-
-    const token = authHeader.split(" ")[1];
-    let decoded;
-    try {
-      decoded = jwt.verify(
-        token,
-        process.env.RESET_PASSWORD_SECRET as string
-      ) as { email: string };
-    } catch (err) {
-      return errorResponse(res, "Invalid or expired token.", 401);
-    }
-
-    const profile = await Profile.findOne({ email: decoded.email });
+    const profile = await Profile.findOne({ email: email });
     if (!profile) {
       return errorResponse(res, "User not found.", 404);
     }
@@ -149,16 +120,12 @@ const validateResetPasswordOTP = async (req: Request, res: Response) => {
     const otpRecord = await OTP.findOne({ email, type });
 
     if (!otpRecord) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "Invalid OTP or OTP has expired.",
-      });
+      return errorResponse(res, "Invalid OTP or OTP has expired.", 400);
     }
 
     const isMatch = await bcrypt.compare(otp, otpRecord.otp);
     if (!isMatch) {
-      return res.json({ ok: false, status: "Failed", message: "Invalid OTP." });
+      return errorResponse(res, "Invalid OTP.", 400);
     }
 
     // Generate a short-lived JWT token for password reset
@@ -183,11 +150,7 @@ const resendOTP = async (req: Request, res: Response) => {
     const { email, type } = req.body;
 
     if (!["created-account", "reset-password"].includes(type)) {
-      return res.json({
-        ok: false,
-        status: "Failed",
-        message: "Invalid OTP type.",
-      });
+      return errorResponse(res, "Invalid OTP type.", 400);
     }
 
     // Check for an existing OTP record
@@ -201,11 +164,11 @@ const resendOTP = async (req: Request, res: Response) => {
       // Prevent resending if less than 30 seconds have passed
       if (timeDifference < 30) {
         const remainingTime = 30 - Math.floor(timeDifference);
-        return res.json({
-          ok: false,
-          status: "Failed",
-          message: `Please wait ${remainingTime} seconds before requesting a new OTP.`,
-        });
+        return errorResponse(
+          res,
+          `Please wait ${remainingTime} seconds before requesting a new OTP.`,
+          400
+        );
       }
 
       // Delete old OTP if 30 seconds have passed

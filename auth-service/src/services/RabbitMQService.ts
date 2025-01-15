@@ -8,8 +8,6 @@ class RabbitMQService {
   private responseQueue = "USER_DETAILS_RESPONSE";
   private emailQueue = "EMAIL_NOTIFICATION_QUEUE";
   private smsQueue = "SMS_NOTIFICATION_QUEUE";
-  private phoneOTPQueue = "PHONE_OTP_NOTIFICATION_QUEUE";
-  private verificationFailedQueue = "VERIFICATION_FAILED_QUEUE";
   private connection!: Connection;
   private channel!: Channel;
 
@@ -26,8 +24,6 @@ class RabbitMQService {
       await this.channel.assertQueue(this.responseQueue);
       await this.channel.assertQueue(this.emailQueue);
       await this.channel.assertQueue(this.smsQueue);
-      await this.channel.assertQueue(this.phoneOTPQueue);
-      await this.channel.assertQueue(this.verificationFailedQueue);
       process.on("SIGINT", () => this.shutdown());
       process.on("SIGTERM", () => this.shutdown());
       this.listenForRequests();
@@ -83,25 +79,6 @@ class RabbitMQService {
       console.error("Error during shutdown:", error);
       process.exit(1);
     }
-  }
-  async verifyPhoneOTP(to: string, code: string) {
-    const message = { to, code };
-    this.channel.sendToQueue(
-      this.phoneOTPQueue,
-      Buffer.from(JSON.stringify(message))
-    );
-  }
-  async consumeVerificationFailedNotifications() {
-    return new Promise((resolve, reject) => {
-      this.channel.consume(this.verificationFailedQueue, async (msg) => {
-        if (msg) {
-          const { verification } = JSON.parse(msg.content.toString());
-          console.log(verification, "verification");
-          this.channel.ack(msg);
-          resolve(verification);
-        }
-      });
-    });
   }
 }
 
