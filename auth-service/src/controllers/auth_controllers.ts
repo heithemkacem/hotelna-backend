@@ -30,10 +30,10 @@ const cookieOptions = {
 const saltRounds = limit ? Number(limit) : 10;
 // Utility function to create and send the JWT token
 const createSendToken = async (user: IProfile, res: Response) => {
-  const { _id, email, type } = user;
+  const { _id, email, type, name } = user;
 
   // Create JWT token with a 1-day expiration
-  const token = jwt.sign({ id: _id, email, type }, jwtSecret, {
+  const token = jwt.sign({ id: _id, email, type, name }, jwtSecret, {
     expiresIn: "30d",
   });
 
@@ -90,6 +90,7 @@ const register = async (req: Request, res: Response) => {
     })) as IClient;
 
     const profile = (await Profile.create({
+      name,
       email,
       password: await encryptPassword(password),
       type: "client",

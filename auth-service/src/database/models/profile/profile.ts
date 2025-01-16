@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 // Interface for TypeScript typing
 export interface IProfile extends Document {
+  name: string;
   email: string;
   password: string;
   phone?: string;

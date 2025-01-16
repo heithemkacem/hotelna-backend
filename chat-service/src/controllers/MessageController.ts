@@ -45,18 +45,43 @@ const getConversation = async (req: AuthRequest, res: Response) => {
   try {
     const { receiverId } = req.params;
     const senderId = req.user._id;
+    console.log(req.user);
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 10;
 
+    // Calculate the starting index for the query
+    const startIndex = (page - 1) * limit;
+
+    // Fetch the messages with pagination
     const messages = await Message.find({
+      $or: [
+        { senderId, receiverId },
+        { senderId: receiverId, receiverId: senderId },
+      ],
+    })
+
+      .skip(startIndex)
+      .limit(limit);
+
+    // Get the total count of messages for this conversation
+    const total = await Message.countDocuments({
       $or: [
         { senderId, receiverId },
         { senderId: receiverId, receiverId: senderId },
       ],
     });
 
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+
     return res.json({
       status: 200,
       message: "Messages retrieved successfully!",
-      data: messages,
+      messages,
+      total,
+      totalPages,
+      currentPage: page,
+      pageSize: limit,
     });
   } catch (error: any) {
     return res.json({
