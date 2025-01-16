@@ -2,7 +2,6 @@ import amqp, { Channel } from "amqplib";
 import config from "../config/config";
 import { ExpoPushService } from "./ExpoPushService";
 import { EmailService } from "./EmailService";
-import { UserStatusStore } from "../utils";
 import { TwillioService } from "./TwillioService";
 
 class RabbitMQService {

@@ -135,6 +135,14 @@ const login = async (req: Request, res: Response) => {
         email: profile.email,
       });
     }
+    if (!profile.isPhoneVerified) {
+      return res.json({
+        ok: false,
+        status: "VerifyPhone",
+        message: "Account is not verified. Please verify your email first.",
+        email: profile.email,
+      });
+    }
 
     // Create JWT token and send it in a cookie
     const token = await createSendToken(profile, res);

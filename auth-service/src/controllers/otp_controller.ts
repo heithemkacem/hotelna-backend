@@ -80,7 +80,7 @@ const sendPhoneOTP = async (req: Request, res: Response) => {
       return errorResponse(res, "Phone already exists.", 400);
     }
     console.log(phone, "sendPhoneOTP");
-    await rabbitMQService.sendSMSNotification(phone);
+    await twillioService.sendVerification(phone);
     return successResponse(res, "OTP sent to your phone for verification.");
   } catch (error: any) {
     console.log(error);
@@ -161,6 +161,8 @@ const validateResetPasswordOTP = async (req: Request, res: Response) => {
     return errorResponse(res, "Server error", 500);
   }
 };
+
+
 
 const resendOTP = async (req: Request, res: Response) => {
   try {
