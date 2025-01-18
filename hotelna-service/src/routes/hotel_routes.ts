@@ -2,8 +2,6 @@ import express from "express";
 import { addExistingServiceToHotel, deleteServiceFromHotel, getClientsInHotel, getHotelByCode, getHotelCoordinates, getHotelServices, getHotelServicesloggedIn, getServiceRequestsForHotel, updateHotelPosition, updateServiceStatus } from "../controllers/hotel-controller";
 import { verifyToken } from "../middleware";
 
-
-
 const router = express.Router();
 
 // Route to get a hotel by its code
