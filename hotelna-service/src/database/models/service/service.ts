@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 
 export interface IService extends Document {
+  _id: mongoose.Types.ObjectId;
   name: string;
   description: string;
   key: number;

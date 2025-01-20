@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 // Interface for TypeScript typing
 export interface IClient extends Document {
   profile: mongoose.Types.ObjectId;
+  _id: mongoose.Types.ObjectId;
   current_hotel?: mongoose.Types.ObjectId;
   visited_hotels: mongoose.Types.ObjectId[];
   notifications: boolean;
@@ -10,6 +11,7 @@ export interface IClient extends Document {
   sounds: boolean;
   createdAt: Date;
   blocked:boolean
+  activities:string[]
 }
 
 // Schema Definition
@@ -26,7 +28,8 @@ const clientSchema = new Schema<IClient>({
   visited_hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' }],
   notifications: { type: Boolean, default: true },
   sounds: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  activities: [{ type: String }],
 });
 
 // Exporting the Model
