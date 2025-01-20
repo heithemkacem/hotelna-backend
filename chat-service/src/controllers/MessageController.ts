@@ -59,7 +59,6 @@ const getConversation = async (req: AuthRequest, res: Response) => {
         { senderId: receiverId, receiverId: senderId },
       ],
     })
-
       .skip(startIndex)
       .limit(limit);
 
