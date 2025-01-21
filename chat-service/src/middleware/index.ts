@@ -32,7 +32,6 @@ const authMiddleware = async (
   next: NextFunction
 ) => {
   const authHeader = req.headers.authorization;
-  console.log(req.headers);
   if (!authHeader) {
     return next(new ApiError(401, "Missing authorization header"));
   }

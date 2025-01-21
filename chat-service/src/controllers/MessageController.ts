@@ -16,7 +16,7 @@ const send = async (req: AuthRequest, res: Response) => {
       message,
     });
 
-    await handleMessageReceived(name, email, receiverId, message);
+    // await handleMessageReceived(name, email, receiverId, message);
 
     return res.json({
       status: 200,
@@ -45,7 +45,6 @@ const getConversation = async (req: AuthRequest, res: Response) => {
   try {
     const { receiverId } = req.params;
     const senderId = req.user._id;
-    console.log(req.user);
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
 
@@ -59,6 +58,7 @@ const getConversation = async (req: AuthRequest, res: Response) => {
         { senderId: receiverId, receiverId: senderId },
       ],
     })
+      .sort({ createdAt: -1 })
       .skip(startIndex)
       .limit(limit);
 

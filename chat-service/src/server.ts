@@ -17,19 +17,16 @@ io.on("connection", (socket: Socket) => {
     console.log("Client disconnected", socket.id);
   });
 
-  socket.on("sendMessage", (message) => {
-    io.emit("receiveMessage", message);
-  });
-
   socket.on("sendMessage", async (data) => {
+    console.log(data);
     const { senderId, receiverId, message } = data;
     const msg = new Message({ senderId, receiverId, message });
     await msg.save();
 
-    io.to(receiverId).emit("receiveMessage", msg); // Assuming receiverId is socket ID of the receiver
+    // Assuming receiverId is the socket ID of the receiver
+    io.to(receiverId).emit("receiveMessage", msg);
   });
 });
-
 const unexpectedErrorHandler = (error: unknown) => {
   console.error(error);
 };
