@@ -1,86 +1,86 @@
-import { Request, Response } from 'express';
-import {Client, Hotel,Profile, Settings} from '../database/index';
-import { successResponse,errorResponse } from '../utils';
-import QRCode from 'qrcode';
-import bcrypt from 'bcrypt';
-import { generatePassword } from '../utils';
-import { rabbitMQService } from '../services/RabbitMQService';
-import {Service} from '../database/index';
+import { Request, Response } from "express";
+import {
+  Admin,
+  Client,
+  Hotel,
+  IAdmin,
+  IProfile,
+  Profile,
+  Settings,
+} from "../database/index";
+import { successResponse, errorResponse } from "../utils";
+import QRCode from "qrcode";
+import bcrypt from "bcrypt";
+import { generatePassword } from "../utils";
+import { rabbitMQService } from "../services/RabbitMQService";
+import { Service } from "../database/index";
 export const getHotels = async (req: Request, res: Response) => {
   try {
-    const { page = 1, search = '', showBlocked, minRating, minPrice, maxPrice } = req.query;
+    const {
+      page = 1,
+      search = "",
+      showBlocked,
+      minRating,
+      minPrice,
+      maxPrice,
+    } = req.query;
 
     const filters: any = {};
 
-   
     if (search) {
-      filters.name = { $regex: search, $options: 'i' };
+      filters.name = { $regex: search, $options: "i" };
     }
 
-    
     if (showBlocked !== undefined) {
-      filters.blocked = showBlocked === 'true';
+      filters.blocked = showBlocked === "true";
     }
 
-    
     if (minRating) {
       filters.rating = { $gte: Number(minRating) };
     }
 
-   
     if (minPrice || maxPrice) {
       filters.price = {};
       if (minPrice) filters.price.$gte = Number(minPrice);
       if (maxPrice) filters.price.$lte = Number(maxPrice);
     }
 
-  
     const limit = 6;
     const skip = (Number(page) - 1) * limit;
 
-   
-    const hotels = await Hotel.find(filters)
-      .skip(skip)
-      .limit(limit);
+    const hotels = await Hotel.find(filters).skip(skip).limit(limit);
 
-   
     const total = await Hotel.countDocuments(filters);
 
-    return successResponse(res, 'Hotels retrieved successfully', {
-        hotels,
-        total,
-        totalPages: Math.ceil(total / limit),
-        currentPage: Number(page),
-      });
-  
+    return successResponse(res, "Hotels retrieved successfully", {
+      hotels,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: Number(page),
+    });
   } catch (error) {
-    console.error('Error retrieving hotels:', error);
-    return errorResponse(res, 'Error retrieving hotels', 500);
+    console.error("Error retrieving hotels:", error);
+    return errorResponse(res, "Error retrieving hotels", 500);
   }
 };
-
-
-
-
-
 
 export const createHotel = async (req: Request, res: Response) => {
   try {
     const { name, description, price, images } = req.body;
 
     if (!name || !description || !price) {
-      return errorResponse(res, 'Name, description, and price are required.');
+      return errorResponse(res, "Name, description, and price are required.");
     }
 
     if (images && (!Array.isArray(images) || images.length > 6)) {
       return errorResponse(
         res,
-        'Images must be an array with a maximum of 6 URLs.'
+        "Images must be an array with a maximum of 6 URLs."
       );
     }
 
     // Initialize the key variable
-    let newKey = '';
+    let newKey = "";
     let isUnique = false;
 
     // Generate a unique random 4-digit key
@@ -98,22 +98,22 @@ export const createHotel = async (req: Request, res: Response) => {
 
     // Generate a password for the hotel profile
     const rawPassword = generatePassword();
-    console.log(rawPassword)
+    console.log(rawPassword);
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     // Create a unique email for the hotel
-    const hotelEmail = `${name.replace(/\s+/g, '').toLowerCase()}@example.com`;
+    const hotelEmail = `${name.replace(/\s+/g, "").toLowerCase()}@example.com`;
     const hotelProfile = await Profile.create({
       email: hotelEmail,
       password: hashedPassword,
-      type: 'hotel',
+      type: "hotel",
       isVerified: true,
     });
 
     // Create settings for the hotel profile
     await Settings.create({
       user: hotelProfile._id,
-      userType: 'Hotel',
+      userType: "Hotel",
       notification: true,
       emailNotification: true,
       bookingUpdate: true,
@@ -134,17 +134,17 @@ export const createHotel = async (req: Request, res: Response) => {
     // Send the email notification using RabbitMQ
     await rabbitMQService.sendEmailNotification(
       hotelEmail,
-      'Welcome to Our Platform',
+      "Welcome to Our Platform",
       `Dear ${name},\n\nYour hotel account has been created successfully. Here are your credentials:\n\nEmail: ${hotelEmail}\nPassword: ${rawPassword}\n\nBest regards,\nYour Company`
     );
 
-    return successResponse(res, 'Hotel created successfully', {
+    return successResponse(res, "Hotel created successfully", {
       hotel: newHotel,
       qrCode,
     });
   } catch (error) {
-    console.error('Error creating hotel:', error);
-    return errorResponse(res, 'Failed to create hotel', 500);
+    console.error("Error creating hotel:", error);
+    return errorResponse(res, "Failed to create hotel", 500);
   }
 };
 
@@ -155,23 +155,21 @@ export const editHotelByKey = async (req: Request, res: Response) => {
     const updates = req.body;
 
     if (!key) {
-      return errorResponse(res, 'Hotel key is required.', 400);
+      return errorResponse(res, "Hotel key is required.", 400);
     }
 
-    const updatedHotel = await Hotel.findOneAndUpdate(
-      { key },
-      updates,
-      { new: true }
-    );
+    const updatedHotel = await Hotel.findOneAndUpdate({ key }, updates, {
+      new: true,
+    });
 
     if (!updatedHotel) {
-      return errorResponse(res, 'Hotel not found', 404);
+      return errorResponse(res, "Hotel not found", 404);
     }
 
-    return successResponse(res, 'Hotel updated successfully', updatedHotel);
+    return successResponse(res, "Hotel updated successfully", updatedHotel);
   } catch (error) {
-    console.error('Error updating hotel:', error);
-    return errorResponse(res, 'Failed to update hotel', 500);
+    console.error("Error updating hotel:", error);
+    return errorResponse(res, "Failed to update hotel", 500);
   }
 };
 
@@ -181,19 +179,19 @@ export const deleteHotelByKey = async (req: Request, res: Response) => {
     const { key } = req.body;
 
     if (!key) {
-      return errorResponse(res, 'Hotel key is required.', 400);
+      return errorResponse(res, "Hotel key is required.", 400);
     }
 
     const deletedHotel = await Hotel.findOneAndDelete({ key });
 
     if (!deletedHotel) {
-      return errorResponse(res, 'Hotel not found', 404);
+      return errorResponse(res, "Hotel not found", 404);
     }
 
-    return successResponse(res, 'Hotel deleted successfully');
+    return successResponse(res, "Hotel deleted successfully");
   } catch (error) {
-    console.error('Error deleting hotel:', error);
-    return errorResponse(res, 'Failed to delete hotel', 500);
+    console.error("Error deleting hotel:", error);
+    return errorResponse(res, "Failed to delete hotel", 500);
   }
 };
 
@@ -203,45 +201,45 @@ export const toggleBlockHotelByKey = async (req: Request, res: Response) => {
     const { key } = req.body;
 
     if (!key) {
-      return errorResponse(res, 'Hotel key is required.', 400);
+      return errorResponse(res, "Hotel key is required.", 400);
     }
 
     const hotel = await Hotel.findOne({ key });
 
     if (!hotel) {
-      return errorResponse(res, 'Hotel not found', 404);
+      return errorResponse(res, "Hotel not found", 404);
     }
 
     hotel.blocked = !hotel.blocked;
     await hotel.save();
 
-    const status = hotel.blocked ? 'blocked' : 'unblocked';
+    const status = hotel.blocked ? "blocked" : "unblocked";
     return successResponse(res, `Hotel successfully ${status}`);
   } catch (error) {
-    console.error('Error toggling block status:', error);
-    return errorResponse(res, 'Failed to toggle block status', 500);
+    console.error("Error toggling block status:", error);
+    return errorResponse(res, "Failed to toggle block status", 500);
   }
 };
 export const getAllClients = async (req: any, res: any) => {
   try {
     const { name, email, page = 1, limit = 10 } = req.query;
 
-   
     const query: any = {};
 
     if (name) {
-      query.name = { $regex: name, $options: 'i' }; 
+      query.name = { $regex: name, $options: "i" };
     }
     if (email) {
-    
-      const profiles = await Profile.find({ email: { $regex: email, $options: 'i' } });
-      const profileIds = profiles.map(profile => profile._id);
-      query.profile = { $in: profileIds }; 
+      const profiles = await Profile.find({
+        email: { $regex: email, $options: "i" },
+      });
+      const profileIds = profiles.map((profile) => profile._id);
+      query.profile = { $in: profileIds };
     }
 
     const skip = (Number(page) - 1) * Number(limit);
     const clients = await Client.find(query)
-      .populate("profile", "email") 
+      .populate("profile", "email")
       .skip(skip)
       .limit(Number(limit));
 
@@ -262,14 +260,13 @@ export const getAllClients = async (req: any, res: any) => {
       },
     });
   } catch (error) {
-    console.error('Error searching clients:', error);
+    console.error("Error searching clients:", error);
     return res.status(500).json({
       ok: false,
       status: "Error",
       message: "Error retrieving clients",
     });
   }
-
 };
 export const blockUnblockClient = async (req: any, res: any) => {
   try {
@@ -280,8 +277,8 @@ export const blockUnblockClient = async (req: any, res: any) => {
     if (!client) {
       return res.status(404).json({
         ok: false,
-        status: 'Error',
-        message: 'Client not found.',
+        status: "Error",
+        message: "Client not found.",
       });
     }
 
@@ -291,51 +288,51 @@ export const blockUnblockClient = async (req: any, res: any) => {
 
     return res.status(200).json({
       ok: true,
-      status: 'Success',
-      message: `Client has been ${client.blocked ? 'blocked' : 'unblocked'} successfully.`,
+      status: "Success",
+      message: `Client has been ${
+        client.blocked ? "blocked" : "unblocked"
+      } successfully.`,
       data: { client },
     });
   } catch (error) {
-    console.error('Error blocking/unblocking client:', error);
+    console.error("Error blocking/unblocking client:", error);
     return res.status(500).json({
       ok: false,
-      status: 'Error',
-      message: 'Failed to block/unblock client.',
+      status: "Error",
+      message: "Failed to block/unblock client.",
     });
   }
 };
 export const deleteClient = async (req: any, res: any) => {
   try {
-    const { clientId } = req.body; 
+    const { clientId } = req.body;
     const client = await Client.findById(clientId);
     if (!client) {
       return res.status(404).json({
         ok: false,
-        status: 'Error',
-        message: 'Client not found.',
+        status: "Error",
+        message: "Client not found.",
       });
     }
 
-    
     const profile = await Profile.findById(client.profile);
     if (profile) {
       await Profile.deleteOne({ _id: profile._id });
     }
 
-  
     await Client.deleteOne({ _id: clientId });
 
     return res.status(200).json({
       ok: true,
-      status: 'Success',
-      message: 'Client and related profile have been deleted successfully.',
+      status: "Success",
+      message: "Client and related profile have been deleted successfully.",
     });
   } catch (error) {
-    console.error('Error deleting client and profile:', error);
+    console.error("Error deleting client and profile:", error);
     return res.status(500).json({
       ok: false,
-      status: 'Error',
-      message: 'Failed to delete client and profile.',
+      status: "Error",
+      message: "Failed to delete client and profile.",
     });
   }
 };
@@ -346,8 +343,8 @@ export const createService = async (req: any, res: any) => {
     if (!name || !description) {
       return res.status(400).json({
         ok: false,
-        status: 'Error',
-        message: 'Name and description are required.',
+        status: "Error",
+        message: "Name and description are required.",
       });
     }
 
@@ -356,16 +353,16 @@ export const createService = async (req: any, res: any) => {
 
     return res.status(201).json({
       ok: true,
-      status: 'Success',
-      message: 'Service created successfully.',
+      status: "Success",
+      message: "Service created successfully.",
       data: newService,
     });
   } catch (error) {
-    console.error('Error creating service:', error);
+    console.error("Error creating service:", error);
     return res.status(500).json({
       ok: false,
-      status: 'Error',
-      message: 'Failed to create service.',
+      status: "Error",
+      message: "Failed to create service.",
     });
   }
 };
@@ -373,13 +370,13 @@ export const createService = async (req: any, res: any) => {
 // Edit an existing service
 export const editService = async (req: any, res: any) => {
   try {
-    const { name, description,serviceId } = req.body;
+    const { name, description, serviceId } = req.body;
 
     if (!name || !description) {
       return res.status(400).json({
         ok: false,
-        status: 'Error',
-        message: 'Name and description are required.',
+        status: "Error",
+        message: "Name and description are required.",
       });
     }
 
@@ -392,23 +389,23 @@ export const editService = async (req: any, res: any) => {
     if (!service) {
       return res.status(404).json({
         ok: false,
-        status: 'Error',
-        message: 'Service not found.',
+        status: "Error",
+        message: "Service not found.",
       });
     }
 
     return res.status(200).json({
       ok: true,
-      status: 'Success',
-      message: 'Service updated successfully.',
+      status: "Success",
+      message: "Service updated successfully.",
       data: service,
     });
   } catch (error) {
-    console.error('Error editing service:', error);
+    console.error("Error editing service:", error);
     return res.status(500).json({
       ok: false,
-      status: 'Error',
-      message: 'Failed to edit service.',
+      status: "Error",
+      message: "Failed to edit service.",
     });
   }
 };
@@ -423,22 +420,59 @@ export const deleteService = async (req: any, res: any) => {
     if (!service) {
       return res.status(404).json({
         ok: false,
-        status: 'Error',
-        message: 'Service not found.',
+        status: "Error",
+        message: "Service not found.",
       });
     }
 
     return res.status(200).json({
       ok: true,
-      status: 'Success',
-      message: 'Service deleted successfully.',
+      status: "Success",
+      message: "Service deleted successfully.",
     });
   } catch (error) {
-    console.error('Error deleting service:', error);
+    console.error("Error deleting service:", error);
     return res.status(500).json({
       ok: false,
-      status: 'Error',
-      message: 'Failed to delete service.',
+      status: "Error",
+      message: "Failed to delete service.",
     });
   }
 };
+
+// export const createAdminUser = async () => {
+//   try {
+//     const adminEmail = "admin@hotelna.com"; // Change this to your desired admin email
+//     const adminPassword = "Hh123456789@"; // Change this to your desired admin password
+
+//     // Check if an admin user already exists
+//     const existingAdmin = await Profile.findOne({ role: "admin" });
+//     if (existingAdmin) {
+//       console.log("Admin user already exists.");
+//       return;
+//     }
+
+//     // Hash the admin password
+//     const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+//     // Create the admin user
+//     const profile: IProfile = new Profile({
+//       email: adminEmail,
+//       password: hashedPassword,
+//       type: "admin",
+//       isVerified: true,
+//       phone: "+21625711161",
+//       isPhoneVerified: true,
+//     });
+//     await profile.save();
+//     const admin: IAdmin = new Admin({
+//       profile: profile._id,
+//     });
+//     await admin.save();
+//     profile.user_id = admin._id as any;
+//     admin.save();
+//     console.log("Admin user created successfully.");
+//   } catch (error) {
+//     console.error("Error creating admin user:", error);
+//   }
+// };

@@ -7,7 +7,6 @@ export interface IProfile extends Document {
   password: string;
   phone?: string;
   type: "client" | "hotel" | "admin";
-  user?: mongoose.Types.ObjectId;
   isVerified: boolean;
   createdAt: Date;
   user_id: mongoose.Schema.Types.ObjectId;
