@@ -16,21 +16,24 @@ io.on("connection", (socket: Socket) => {
   console.log("Client connected", socket.id);
 
   socket.on("register", (userId) => {
+    // Check if user is already registered and update the socket ID
+    if (userSocketMap.has(userId)) {
+      console.log(`Updating socket ID for user ${userId}`);
+    }
     userSocketMap.set(userId, socket.id);
     console.log(`User ${userId} registered with socket ID ${socket.id}`);
   });
 
   socket.on("disconnect", () => {
     console.log("Client disconnected", socket.id);
-    // Optionally, remove the user from the map if needed
     for (const [userId, sockId] of userSocketMap.entries()) {
       if (sockId === socket.id) {
         userSocketMap.delete(userId);
+        console.log(`Removed user ${userId} from map`);
         break;
       }
     }
   });
-
   socket.on("sendMessage", async (data) => {
     const { senderId, receiverId, message } = data;
     const msg = new Message({ senderId, receiverId, message });
