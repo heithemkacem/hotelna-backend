@@ -31,11 +31,13 @@ class RabbitMQService {
     await this.channel.assertQueue(config.queue.notifications);
     this.channel.consume(config.queue.notifications, async (msg) => {
       if (msg) {
-        const { type, userId, message, userEmail, userToken, fromName } =
-          JSON.parse(msg.content.toString());
+        const { type, message, userEmail, userToken, fromName } = JSON.parse(
+          msg.content.toString()
+        );
 
         if (type === "MESSAGE_RECEIVED") {
-          if (userToken) {
+          console.log(userToken);
+          if (userToken !== "not_available") {
             await this.expoPushService.sendPushNotification(
               userToken,
               "A new message from " + fromName,
