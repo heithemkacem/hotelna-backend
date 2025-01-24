@@ -18,15 +18,6 @@ const { limit } = config;
 
 const jwtSecret = config.JWT_SECRET as string;
 
-const COOKIE_EXPIRATION_DAYS = 90; // cookie expiration in days
-const expirationDate = new Date(
-  Date.now() + COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000
-);
-const cookieOptions = {
-  expires: expirationDate,
-  secure: config.env === "production", // Ensure cookies are secure in production
-  httpOnly: true,
-};
 const saltRounds = limit ? Number(limit) : 10;
 // Utility function to create and send the JWT token
 const createSendToken = async (
@@ -56,9 +47,6 @@ const createSendToken = async (
 
   // Create JWT token with a 30-day expiration
   const token = jwt.sign(payload, jwtSecret, { expiresIn: "30d" });
-
-  // Send the JWT token as a cookie
-  res.cookie("jwt", token, cookieOptions);
 
   return token;
 };
@@ -117,7 +105,6 @@ const register = async (req: Request, res: Response) => {
       email,
       password: await encryptPassword(password),
       type: "client",
-      isVerified: false,
       user_id: client._id,
     })) as IProfile;
     client.profile = profile._id as unknown as mongoose.Types.ObjectId;

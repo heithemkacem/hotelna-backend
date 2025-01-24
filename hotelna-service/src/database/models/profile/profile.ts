@@ -13,6 +13,7 @@ export interface IProfile extends Document {
   isPhoneVerified: boolean;
   loginHistory: string[];
   expoPushToken: string;
+  blocked: boolean;
 }
 
 // Schema Definition
@@ -31,6 +32,7 @@ const profileSchema = new Schema<IProfile>({
   user_id: { type: mongoose.Schema.Types.ObjectId },
   loginHistory: { type: [String], default: [] },
   expoPushToken: { type: String, required: false }, // Expo push token
+  blocked: { type: Boolean, default: false },
 });
 
 // Exporting the Model

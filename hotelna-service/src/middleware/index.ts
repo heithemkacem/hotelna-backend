@@ -93,7 +93,7 @@ export const validateRequest = (schema: ObjectSchema) => {
     const { error } = schema.validate(req.body, { abortEarly: false });
 
     if (error) {
-      const validationErrors = error.details.map((err) => err.message);
+      const validationErrors = error.details.map((err: any) => err.message);
       return res.status(400).json({
         ok: false,
         status: "Validation Error",
