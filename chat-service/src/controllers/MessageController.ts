@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { AuthRequest } from "../middleware";
 import { Message } from "../database";
-import { ApiError, handleMessageReceived } from "../utils";
+import { ApiError } from "../utils";
 
 const send = async (req: AuthRequest, res: Response) => {
   try {

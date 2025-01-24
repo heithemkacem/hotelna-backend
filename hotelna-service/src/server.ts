@@ -5,14 +5,15 @@ import { errorConverter, errorHandler } from "./middleware";
 import { connectDB } from "./database";
 import config from "./config/config";
 import { rabbitMQService } from "./services/RabbitMQService";
-import routes from './routes/index'; 
-
+import routes from "./routes/index";
+import morgan from "morgan";
 const app: Express = express();
 let server: Server;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(errorConverter);
 app.use(errorHandler);
+app.use(morgan("dev"));
 app.use(routes);
 
 connectDB();

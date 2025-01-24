@@ -4,6 +4,7 @@ import app from "./app";
 import { Message, connectDB } from "./database";
 import config from "./config/config";
 import morgan from "morgan";
+import { handleMessageReceived } from "./utils";
 let server: Server;
 connectDB();
 app.use(morgan("dev"));
@@ -45,6 +46,7 @@ io.on("connection", (socket: Socket) => {
       io.to(receiverSocketId).emit("receiveMessage", msg);
     } else {
       console.log(`User ${receiverId} is not connected`);
+      handleMessageReceived("Test", receiverId, message);
       // Optionally, you could store the message for later delivery
     }
   });

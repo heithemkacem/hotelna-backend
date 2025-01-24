@@ -8,14 +8,18 @@ import ServiceRequest from "../database/models/serive-request/service-request";
 import ExpoPushToken from "../database/models/push-token/push-token";
 
 // Change Password Function
-const changePassword = async (req: CustomRequest, res: any, ) => {
+const changePassword = async (req: CustomRequest, res: any) => {
   try {
     const userId = req.user?.profile.id; // Extract user ID from req.user
     const { newPassword, confirmNewPassword } = req.body;
 
     // Check if new password and confirm password match
     if (newPassword !== confirmNewPassword) {
-      return errorResponse(res, "New password and confirm password do not match.", 400);
+      return errorResponse(
+        res,
+        "New password and confirm password do not match.",
+        400
+      );
     }
 
     // Find the profile and update the password
@@ -32,12 +36,10 @@ const changePassword = async (req: CustomRequest, res: any, ) => {
     await profile.save();
 
     // Update the login history in the Client model
-   
-  
-      const historyMessage : any = `Password changed on ${new Date().toISOString()}`;
-      profile.loginHistory.push(historyMessage);
-      await profile.save();
-    
+
+    const historyMessage: any = `Password changed on ${new Date().toISOString()}`;
+    profile.loginHistory.push(historyMessage);
+    await profile.save();
 
     return successResponse(res, "Password changed successfully.");
   } catch (error) {
@@ -47,10 +49,14 @@ const changePassword = async (req: CustomRequest, res: any, ) => {
 };
 
 // View Login History Function
-const viewLoginHistory = async (req: any, res: Response, next: NextFunction) => {
+const viewLoginHistory = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const userId = req.user?.profile.id; // Extract user ID from req.user
-    console.log(userId)
+    console.log(userId);
 
     // Find the client associated with the profile
     const client = await Profile.findOne({ _id: userId });
@@ -60,7 +66,9 @@ const viewLoginHistory = async (req: any, res: Response, next: NextFunction) => 
 
     // Return the login history
     const loginHistory = client.loginHistory || [];
-    return successResponse(res, "Login history retrieved successfully.", { loginHistory });
+    return successResponse(res, "Login history retrieved successfully.", {
+      loginHistory,
+    });
   } catch (error) {
     console.error("Error retrieving login history:", error);
     return errorResponse(res, "Failed to retrieve login history.", 500);
@@ -76,7 +84,7 @@ const enterHotel = async (req: any, res: Response) => {
     }
 
     // Find the client and their profile
-    const client = await Client.findById(userId) as IClient;
+    const client = (await Client.findById(userId)) as IClient;
     const profile = await Profile.findById(client?.profile);
 
     if (!client || !profile) {
@@ -84,7 +92,7 @@ const enterHotel = async (req: any, res: Response) => {
     }
 
     // Find the hotel by key
-    const hotel = await Hotel.findOne({ key: hotelKey }) as IHotel;
+    const hotel = (await Hotel.findOne({ key: hotelKey })) as IHotel;
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
     }
@@ -93,7 +101,11 @@ const enterHotel = async (req: any, res: Response) => {
     client.current_hotel = hotel._id;
 
     // Add the hotel to the client's visited hotels if not already there
-    if (!client.visited_hotels.some(hotelId => hotelId.toString() === hotel._id.toString())) {
+    if (
+      !client.visited_hotels.some(
+        (hotelId) => hotelId.toString() === hotel._id.toString()
+      )
+    ) {
       client.visited_hotels.push(hotel._id);
     }
 
@@ -105,7 +117,11 @@ const enterHotel = async (req: any, res: Response) => {
     profile.loginHistory.push(`Entered hotel: ${hotel.name} on ${date}`);
 
     // Add the client to the hotel's current clients if not already there
-    if (!hotel.current_clients.some(clientId => clientId.toString() === client._id.toString())) {
+    if (
+      !hotel.current_clients.some(
+        (clientId) => clientId.toString() === client._id.toString()
+      )
+    ) {
       hotel.current_clients.push(client._id);
     }
 
@@ -135,7 +151,12 @@ export const requestService = async (req: Request, res: Response) => {
 
     // Find the client by their ID and ensure they are in the correct hotel
     const client: any = await Client.findById(clientId);
-    if (!client || !client.current_hotel || !hotel._id || client.current_hotel.toString() !== hotel._id.toString()) {
+    if (
+      !client ||
+      !client.current_hotel ||
+      !hotel._id ||
+      client.current_hotel.toString() !== hotel._id.toString()
+    ) {
       return errorResponse(res, "Client not found in this hotel", 404);
     }
 
@@ -191,48 +212,52 @@ export const searchPeopleInSameHotel = async (req: any, res: Response) => {
   try {
     const userId = req.user?.profile.id; // Assuming the user's ID is stored in `req.user.id`
     const { name } = req.query; // Get the name filter from query parameters
-    
+
     // Find the client associated with the logged-in user
     const client = await Client.findOne({ profile: userId });
     if (!client) {
-      return errorResponse(res, 'Client not found', 404);
+      return errorResponse(res, "Client not found", 404);
     }
 
     // Ensure the client is currently in a hotel
     if (!client.current_hotel) {
-      return errorResponse(res, 'You are not checked into any hotel', 400);
+      return errorResponse(res, "You are not checked into any hotel", 400);
     }
 
     // Get the hotel ID
     const hotelId = client.current_hotel;
 
     // Construct the search query
-    const searchQuery: any = { 
-      current_hotel: hotelId, 
-      _id: { $ne: client._id } // Exclude the current user
+    const searchQuery: any = {
+      current_hotel: hotelId,
+      _id: { $ne: client._id }, // Exclude the current user
     };
 
     // If a name is provided, add it to the search criteria
     if (name) {
-      searchQuery.name = new RegExp(name as string, 'i'); // Case-insensitive search
+      searchQuery.name = new RegExp(name as string, "i"); // Case-insensitive search
     }
 
     // Find clients matching the query
     const clients = await Client.find(searchQuery).populate({
-      path: 'profile',
-      select: 'name email phone', // Select specific fields from profile
+      path: "profile",
+      select: "name email phone", // Select specific fields from profile
     });
 
     // Format the response
     const people = clients.map((client: any) => ({
       name: client.name,
-      email: client.profile?.email || 'N/A',
-      phone: client.profile?.phone || 'N/A',
+      email: client.profile?.email || "N/A",
+      phone: client.profile?.phone || "N/A",
     }));
 
-    return successResponse(res, 'People in the same hotel retrieved successfully', { people });
+    return successResponse(
+      res,
+      "People in the same hotel retrieved successfully",
+      { people }
+    );
   } catch (error: any) {
-    return errorResponse(res, error.message || 'Server error', 500);
+    return errorResponse(res, error.message || "Server error", 500);
   }
 };
 const getClientDetails = async (req: Request, res: Response) => {
@@ -246,10 +271,10 @@ const getClientDetails = async (req: Request, res: Response) => {
     }
 
     // Find the client by the clientId and populate the necessary fields
-    const client:any = await Client.findById(clientId)
-      .populate('profile', 'email phone type') // Populating profile fields
-      .populate('current_hotel', 'name location coordinates') // Populating current hotel fields
-      .populate('visited_hotels', 'name location coordinates'); // Populating visited hotels fields
+    const client: any = await Client.findById(clientId)
+      .populate("profile", "email phone type") // Populating profile fields
+      .populate("current_hotel", "name location coordinates") // Populating current hotel fields
+      .populate("visited_hotels", "name location coordinates"); // Populating visited hotels fields
 
     if (!client) {
       return errorResponse(res, "Client not found", 404);
@@ -275,45 +300,69 @@ const getClientDetails = async (req: Request, res: Response) => {
 export const addToken = async (req: Request, res: Response) => {
   try {
     const { expoPushToken, type, device_id, device_type } = req.body;
-    let user: any = req.user;
-
+    let user: any = req.user?.id;
+    const existingUser = await Profile.findById(user);
+    if (!existingUser) {
+      return errorResponse(res, "No profile exist", 400);
+    }
+    console.log(expoPushToken, type, device_id, device_type);
     // Validate inputs
     if (!expoPushToken || !type || !device_id || !device_type) {
-      return errorResponse(res, 'All fields are required: expoPushToken, type, device_id, and device_type', 400);
+      return errorResponse(
+        res,
+        "All fields are required: expoPushToken, type, device_id, and device_type",
+        400
+      );
     }
 
     // Ensure the user has the proper role
-    const validTypes = ['hotel', 'client', 'admin'];
+    const validTypes = ["hotel", "client", "admin"];
     if (!validTypes.includes(type)) {
-      return errorResponse(res, 'Invalid type. Must be one of: hotel, client, admin', 400);
+      return errorResponse(
+        res,
+        "Invalid type. Must be one of: hotel, client, admin",
+        400
+      );
     }
 
     // Check if the token already exists
-    const existingToken = await ExpoPushToken.findOne({ _id: expoPushToken });
+    const existingToken = await ExpoPushToken.findOne({
+      expoPushToken: expoPushToken,
+      device_id: device_id,
+    });
     if (existingToken) {
-      return successResponse(res, 'Token already exists', { token: existingToken });
+      return successResponse(res, "Token already exists", {
+        token: existingToken,
+      });
     }
 
     // Check if a token exists for the device_id and deactivate it
-    await ExpoPushToken.updateMany({ device_id, active: true }, { $set: { active: false } });
+    await ExpoPushToken.updateMany(
+      { device_id, active: true },
+      { $set: { active: false } }
+    );
 
     // Create a new token
     const newToken = new ExpoPushToken({
-      _id: expoPushToken,
+      expoPushToken,
       type,
       active: true,
       device_id,
       device_type,
+      user_id: user,
     });
-
+    existingUser.expoPushToken = expoPushToken;
+    await existingUser.save();
     await newToken.save();
 
-    return successResponse(res, 'Expo push token added successfully', { token: newToken });
+    return successResponse(res, "Expo push token added successfully", {
+      token: newToken,
+    });
   } catch (error: any) {
-    return errorResponse(res, error.message || 'Server error', 500);
+    console.log(error);
+    return errorResponse(res, error.message || "Server error", 500);
   }
 };
-
 
 export default {
   changePassword,
@@ -321,5 +370,5 @@ export default {
   enterHotel,
   requestService,
   getClientDetails,
-  addToken
+  addToken,
 };

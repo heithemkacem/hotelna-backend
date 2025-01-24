@@ -11,6 +11,8 @@ export interface IProfile extends Document {
   createdAt: Date;
   user_id: mongoose.Schema.Types.ObjectId;
   isPhoneVerified: boolean;
+  loginHistory: string[];
+  expoPushToken: string;
 }
 
 // Schema Definition
@@ -27,6 +29,8 @@ const profileSchema = new Schema<IProfile>({
   isVerified: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   user_id: { type: mongoose.Schema.Types.ObjectId },
+  loginHistory: { type: [String], default: [] },
+  expoPushToken: { type: String, required: false }, // Expo push token
 });
 
 // Exporting the Model
