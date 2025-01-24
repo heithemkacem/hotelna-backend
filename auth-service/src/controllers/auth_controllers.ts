@@ -25,24 +25,15 @@ const createSendToken = async (
   client: IClient,
   res: Response
 ) => {
-  const { _id, email, type, isVerified, createdAt } = user;
+  const { _id, email, type, name } = user;
 
   // Prepare the payload with client and profile data
   const payload = {
-    profile: {
-      id: _id,
-      email,
-      type,
-      isVerified,
-      createdAt,
-    },
-    client: {
-      id: client._id,
-      name: client.name,
-      current_hotel: client.current_hotel,
-      visited_hotels: client.visited_hotels,
-      createdAt: client.createdAt,
-    },
+    id: _id,
+    email,
+    type,
+    name,
+    client_id: client._id,
   };
 
   // Create JWT token with a 30-day expiration
