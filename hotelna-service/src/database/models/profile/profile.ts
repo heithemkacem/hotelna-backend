@@ -10,6 +10,7 @@ export interface IProfile extends Document {
   isVerified: boolean;
   createdAt: Date;
   loginHistory: string[]; 
+  blocked: boolean;
 }
 
 // Schema Definition
@@ -23,6 +24,7 @@ const profileSchema = new Schema<IProfile>({
     required: true
   },
   isVerified: { type: Boolean, default: false },
+  blocked: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   loginHistory: { type: [String], default: [] },
 });

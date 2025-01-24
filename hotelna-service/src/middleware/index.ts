@@ -73,3 +73,55 @@ export const verifyToken = (req: any, res: any, next: any) => {
     return res.status(403).json({ message: 'Invalid or expired token.' });
   }
 };
+export const verifyRole = (allowedRoles: string[]) => {
+  return (req: any, res: Response, next: NextFunction) => {
+    if (!req.user || !allowedRoles.includes(req.user?.profile.type)) {
+      return res.status(403).json({ message: 'Access denied. You do not have the required role.' });
+    }
+
+    next();
+  };
+};
+import { ObjectSchema } from 'joi';
+import { Profile } from "../database";
+
+export const validateRequest = (schema: ObjectSchema) => {
+  return (req: any, res: any, next: any) => {
+    const { error } = schema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const validationErrors = error.details.map((err) => err.message);
+      return res.status(400).json({
+        ok: false,
+        status: 'Validation Error',
+        errors: validationErrors,
+      });
+    }
+
+    next();
+  };
+};
+export const checkProfileBlocked = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    // Assuming the user ID is in req.user (decoded from the token)
+    const profileId = req.user?.profile.id;  // This should match the 'id' from your JWT payload
+    
+    // Find the profile by ID
+    const profile = await Profile.findById(profileId);
+    
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found.' });
+    }
+
+    // Check if the profile is blocked
+    if (profile.blocked) {
+      return res.status(403).json({ message: 'Your account is blocked.' });
+    }
+
+    // Proceed if profile is not blocked
+    next();
+  } catch (error) {
+    console.error('Error checking profile status:', error);
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+};

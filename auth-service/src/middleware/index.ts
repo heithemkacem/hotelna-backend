@@ -2,6 +2,7 @@ import { ErrorRequestHandler } from "express";
 import { ApiError } from "../utils";
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import { ObjectSchema } from "joi";
 export const errorConverter: ErrorRequestHandler = (err, req, res, next) => {
   let error = err;
   if (!(error instanceof ApiError)) {
@@ -72,4 +73,21 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
     console.error('Token verification failed:', error);
     return res.status(403).json({ message: 'Invalid or expired token.' });
   }
+};
+
+export const validateRequest = (schema: ObjectSchema) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { error } = schema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const validationErrors = error.details.map((err) => err.message);
+      return res.status(400).json({
+        ok: false,
+        status: 'Validation Error',
+        errors: validationErrors,
+      });
+    }
+
+    next();
+  };
 };

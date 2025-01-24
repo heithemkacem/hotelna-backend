@@ -1,6 +1,7 @@
 import express from "express";
 import { addExistingServiceToHotel, deleteServiceFromHotel, getClientsInHotel, getHotelByCode, getHotelCoordinates, getHotelServices, getHotelServicesloggedIn, getServiceRequestsForHotel, updateHotelPosition, updateServiceStatus } from "../controllers/hotel-controller";
-import { verifyToken } from "../middleware";
+import { validateRequest, verifyToken } from "../middleware";
+import { updateHotelPositionSchema } from "../validators/hotel.dto";
 
 const router = express.Router();
 
@@ -15,4 +16,4 @@ router.get("/hotel/services/logged-in",verifyToken,getHotelServicesloggedIn)
 router.post('/services/update-status',verifyToken,updateServiceStatus)
 router.delete('/unactif-service',verifyToken,deleteServiceFromHotel)
 router.get("/hotel/serices-requests",verifyToken,getServiceRequestsForHotel)
-router.post('/hotel/udpate-position',verifyToken,updateHotelPosition)
+router.post('/hotel/udpate-position',verifyToken,validateRequest(updateHotelPositionSchema),updateHotelPosition)

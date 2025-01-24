@@ -15,6 +15,7 @@ export interface IHotel extends Document {
   price: number;
   images: string[]; 
   key: number; 
+  qrCode:any,
   createdAt: Date;
   current_clients: mongoose.Types.ObjectId[]; // Ensure the type is ObjectId
 }
@@ -41,6 +42,7 @@ const hotelSchema = new Schema<IHotel>({
   price: { type: Number, default: 0 },
   images: [{ type: String }], // Added images field
   key: { type: Number, unique: true, required: true }, // Added key field
+  qrCode: { type: String, required: true }, 
   current_clients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Client' }], 
   createdAt: { type: Date, default: Date.now }
 });

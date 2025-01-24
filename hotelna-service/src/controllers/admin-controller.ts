@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import { generatePassword } from '../utils';
 import { rabbitMQService } from '../services/RabbitMQService';
 import {Service} from '../database/index';
+import ArchivedHotel from '../database/models/archive/archive';
 export const getHotels = async (req: Request, res: Response) => {
   try {
     const { page = 1, search = '', showBlocked, minRating, minPrice, maxPrice } = req.query;
@@ -128,6 +129,7 @@ export const createHotel = async (req: Request, res: Response) => {
       description,
       price,
       key: newKey,
+      qrCode,
       images: images || [],
     });
 
@@ -178,50 +180,72 @@ export const editHotelByKey = async (req: Request, res: Response) => {
 // Delete Hotel
 export const deleteHotelByKey = async (req: Request, res: Response) => {
   try {
-    const { key } = req.body;
+    const { hotelId } = req.body;
 
-    if (!key) {
-      return errorResponse(res, 'Hotel key is required.', 400);
+    if (!hotelId) {
+      return errorResponse(res, 'Hotel ID is required.', 400);
     }
 
-    const deletedHotel = await Hotel.findOneAndDelete({ key });
+    // Find the hotel by ID
+    const hotel = await Hotel.findById(hotelId);
 
-    if (!deletedHotel) {
-      return errorResponse(res, 'Hotel not found', 404);
+    if (!hotel) {
+      return errorResponse(res, 'Hotel not found.', 404);
     }
 
-    return successResponse(res, 'Hotel deleted successfully');
+    // Archive the hotel by copying its data to the ArchivedHotel collection
+    await ArchivedHotel.create({
+      profile: hotel.profile,
+      name: hotel.name,
+      description: hotel.description,
+      location: hotel.location,
+      coordinates: hotel.coordinates,
+      stars: 0,
+      sponsored: hotel.sponsored,
+      services: hotel.services,
+      blocked: hotel.blocked,
+      rating: hotel.rating,
+      price: hotel.price,
+      images: hotel.images,
+      key: hotel.key,
+      archivedAt: new Date(),
+    });
+
+    // Delete the hotel
+    await hotel.deleteOne();
+
+    return successResponse(res, 'Hotel archived and deleted successfully.');
   } catch (error) {
     console.error('Error deleting hotel:', error);
-    return errorResponse(res, 'Failed to delete hotel', 500);
+    return errorResponse(res, 'Failed to delete hotel.', 500);
   }
 };
 
 // Block/Unblock Hotel
-export const toggleBlockHotelByKey = async (req: Request, res: Response) => {
-  try {
-    const { key } = req.body;
+// export const toggleBlockHotelByKey = async (req: Request, res: Response) => {
+//   try {
+//     const { key } = req.body;
 
-    if (!key) {
-      return errorResponse(res, 'Hotel key is required.', 400);
-    }
+//     if (!key) {
+//       return errorResponse(res, 'Hotel key is required.', 400);
+//     }
 
-    const hotel = await Hotel.findOne({ key });
+//     const hotel = await Hotel.findOne({ key });
 
-    if (!hotel) {
-      return errorResponse(res, 'Hotel not found', 404);
-    }
+//     if (!hotel) {
+//       return errorResponse(res, 'Hotel not found', 404);
+//     }
 
-    hotel.blocked = !hotel.blocked;
-    await hotel.save();
+//     hotel.blocked = !hotel.blocked;
+//     await hotel.save();
 
-    const status = hotel.blocked ? 'blocked' : 'unblocked';
-    return successResponse(res, `Hotel successfully ${status}`);
-  } catch (error) {
-    console.error('Error toggling block status:', error);
-    return errorResponse(res, 'Failed to toggle block status', 500);
-  }
-};
+//     const status = hotel.blocked ? 'blocked' : 'unblocked';
+//     return successResponse(res, `Hotel successfully ${status}`);
+//   } catch (error) {
+//     console.error('Error toggling block status:', error);
+//     return errorResponse(res, 'Failed to toggle block status', 500);
+//   }
+// };
 export const getAllClients = async (req: any, res: any) => {
   try {
     const { name, email, page = 1, limit = 10 } = req.query;
@@ -271,37 +295,61 @@ export const getAllClients = async (req: any, res: any) => {
   }
 
 };
-export const blockUnblockClient = async (req: any, res: any) => {
-  try {
-    const { clientId } = req.body; // Get client ID from the request body
+// export const blockUnblockClient = async (req: any, res: any) => {
+//   try {
+//     const { clientId } = req.body; // Get client ID from the request body
 
-    // Find the client by ID
-    const client = await Client.findById(clientId);
-    if (!client) {
-      return res.status(404).json({
-        ok: false,
-        status: 'Error',
-        message: 'Client not found.',
-      });
+//     // Find the client by ID
+//     const client = await Client.findById(clientId);
+//     if (!client) {
+//       return res.status(404).json({
+//         ok: false,
+//         status: 'Error',
+//         message: 'Client not found.',
+//       });
+//     }
+
+//     // Toggle the blocked status
+//     client.blocked = !client.blocked; // Toggle the blocked status
+//     await client.save();
+
+//     return res.status(200).json({
+//       ok: true,
+//       status: 'Success',
+//       message: `Client has been ${client.blocked ? 'blocked' : 'unblocked'} successfully.`,
+//       data: { client },
+//     });
+//   } catch (error) {
+//     console.error('Error blocking/unblocking client:', error);
+//     return res.status(500).json({
+//       ok: false,
+//       status: 'Error',
+//       message: 'Failed to block/unblock client.',
+//     });
+//   }
+// };
+export const blockUnblockProfile = async (req: any, res: any) => {
+  try {
+    const { profileId, action } = req.body; // Action can be "block" or "unblock"
+
+    if (!profileId || !action || !['block', 'unblock'].includes(action)) {
+      return res.status(400).json({ message: 'Invalid parameters.' });
     }
 
-    // Toggle the blocked status
-    client.blocked = !client.blocked; // Toggle the blocked status
-    await client.save();
+    // Find the profile by ID
+    const profile = await Profile.findById(profileId);
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found.' });
+    }
 
-    return res.status(200).json({
-      ok: true,
-      status: 'Success',
-      message: `Client has been ${client.blocked ? 'blocked' : 'unblocked'} successfully.`,
-      data: { client },
-    });
+    // Block or Unblock the profile
+    profile.blocked = action === 'block' ? true : false;
+    await profile.save();
+
+    return res.status(200).json({ message: `Profile ${action}ed successfully.` });
   } catch (error) {
-    console.error('Error blocking/unblocking client:', error);
-    return res.status(500).json({
-      ok: false,
-      status: 'Error',
-      message: 'Failed to block/unblock client.',
-    });
+    console.error('Error blocking/unblocking profile:', error);
+    return res.status(500).json({ message: 'Failed to block/unblock profile.' });
   }
 };
 export const deleteClient = async (req: any, res: any) => {
