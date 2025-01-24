@@ -1,5 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
-
+type LoginHistory = {
+  action: string;
+  date: Date | string;
+};
 // Interface for TypeScript typing
 export interface IProfile extends Document {
   name: string;
@@ -11,7 +14,7 @@ export interface IProfile extends Document {
   createdAt: Date;
   user_id: mongoose.Schema.Types.ObjectId;
   isPhoneVerified: boolean;
-  loginHistory: string[];
+  loginHistory: LoginHistory[];
   expoPushToken: string;
   blocked: boolean;
 }

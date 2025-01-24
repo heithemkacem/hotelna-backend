@@ -118,7 +118,9 @@ const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Find the profile by email and include the password field
-    const profile = await Profile.findOne({ email }).select("+password");
+    const profile = await Profile.findOne({ email }).select(
+      "+password loginHistory"
+    );
 
     // If no profile is found or the password is incorrect
     if (
@@ -161,9 +163,13 @@ const login = async (req: Request, res: Response) => {
     } else {
       throw new ApiError(400, "Invalid user type.");
     }
-
+    profile.loginHistory.unshift({
+      action: "login",
+      date: new Date().toISOString(),
+    });
     // Create JWT token and send it in a cookie
     const token = await createSendToken(profile, user, res);
+
     console.log(token);
 
     // Send success response with the token
