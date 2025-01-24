@@ -1,17 +1,21 @@
 import express from 'express';
-import { getHotels,createHotel, editHotelByKey, deleteHotelByKey, toggleBlockHotelByKey, getAllClients, blockUnblockClient, deleteClient, createService,
+import { getHotels,createHotel, editHotelByKey, deleteHotelByKey,  getAllClients, deleteClient, createService,
     editService,
-    deleteService, } from '../controllers/admin-controller';
+    deleteService,
+    blockUnblockProfile, } from '../controllers/admin-controller';
+import { validateRequest } from '../middleware';
+import { createHotelSchema } from '../validators/hotel.dto';
+
 
 const router = express.Router();
 
 router.get('/hotels', getHotels);
-router.post('/hotel',createHotel)
+router.post('/hotel',validateRequest(createHotelSchema),createHotel)
 router.put('/hotels/edit', editHotelByKey); 
 router.delete('/hotels/delete', deleteHotelByKey);
-router.patch('/hotels/block', toggleBlockHotelByKey);
+// router.patch('/hotels/block', toggleBlockHotelByKey);
 router.get('/clients', getAllClients);
-router.patch('/client/block-unblock',blockUnblockClient)
+router.patch('/client/block-unblock',blockUnblockProfile)
 router.delete('/client/delete',deleteClient)
 router.post('/services', createService);
 
