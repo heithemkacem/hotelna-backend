@@ -84,15 +84,15 @@ const enterHotel = async (req: any, res: Response) => {
     }
 
     // Find the client and their profile
-    const client = (await Client.findById(userId)) as IClient;
-    const profile = await Profile.findById(client?.profile);
+    const client = (await Client.findById(userId)) as any;
+    const profile = (await Profile.findById(client?.profile)) as any;
 
     if (!client || !profile) {
       return errorResponse(res, "Client or profile not found", 404);
     }
 
     // Find the hotel by key
-    const hotel = (await Hotel.findOne({ key: hotelKey })) as IHotel;
+    const hotel = (await Hotel.findOne({ key: hotelKey })) as any;
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
     }
@@ -103,7 +103,7 @@ const enterHotel = async (req: any, res: Response) => {
     // Add the hotel to the client's visited hotels if not already there
     if (
       !client.visited_hotels.some(
-        (hotelId) => hotelId.toString() === hotel._id.toString()
+        (hotelId: string) => hotelId.toString() === hotel._id.toString()
       )
     ) {
       client.visited_hotels.push(hotel._id);
@@ -114,12 +114,15 @@ const enterHotel = async (req: any, res: Response) => {
     if (!profile.loginHistory) {
       profile.loginHistory = [];
     }
-    profile.loginHistory.push(`Entered hotel: ${hotel.name} on ${date}`);
+    profile.loginHistory.unshift({
+      action: "enter-hotel",
+      date: new Date().toISOString(),
+    });
 
     // Add the client to the hotel's current clients if not already there
     if (
       !hotel.current_clients.some(
-        (clientId) => clientId.toString() === client._id.toString()
+        (clientId: string) => clientId.toString() === client._id.toString()
       )
     ) {
       hotel.current_clients.push(client._id);
