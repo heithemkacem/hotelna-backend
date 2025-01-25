@@ -1,31 +1,34 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 // Interface for TypeScript typing
 export interface IClient extends Document {
   profile: mongoose.Types.ObjectId;
-  _id: mongoose.Types.ObjectId;
-  current_hotel?: mongoose.Types.ObjectId;
+  current_hotel: mongoose.Types.ObjectId;
   visited_hotels: mongoose.Types.ObjectId[];
   notifications: boolean;
-  name : string;
+  name: string;
   sounds: boolean;
   createdAt: Date;
-  blocked:boolean
-  activities:string[]
+  blocked: boolean;
+  activities: string[];
 }
 
 // Schema Definition
 const clientSchema = new Schema<IClient>({
-  profile: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true },
-  current_hotel: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' },
-  name : {
-    type:String
+  profile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Profile",
+    required: true,
+  },
+  current_hotel: { type: mongoose.Schema.Types.ObjectId, ref: "Hotel" },
+  name: {
+    type: String,
   },
   blocked: {
-    type:Boolean,
-    default : false
+    type: Boolean,
+    default: false,
   },
-  visited_hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' }],
+  visited_hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: "Hotel" }],
   notifications: { type: Boolean, default: true },
   sounds: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
@@ -33,5 +36,5 @@ const clientSchema = new Schema<IClient>({
 });
 
 // Exporting the Model
-const Client = mongoose.model<IClient>('Client', clientSchema);
+const Client = mongoose.model<IClient>("Client", clientSchema);
 export default Client;

@@ -2,7 +2,6 @@ import mongoose, { Schema, Document } from "mongoose";
 
 // Interface for TypeScript typing
 export interface IHotel extends Document {
-  _id: mongoose.Types.ObjectId; // Add _id explicitly
   profile: mongoose.Types.ObjectId;
   name: string;
   location?: string;
