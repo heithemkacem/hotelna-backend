@@ -300,12 +300,8 @@ const getClientDetails = async (req: Request, res: Response) => {
 export const addToken = async (req: Request, res: Response) => {
   try {
     const { expoPushToken, type, device_id, device_type } = req.body;
-    let user: any = req.user?.id;
-    const existingUser = await Profile.findById(user);
-    if (!existingUser) {
-      return errorResponse(res, "No profile exist", 400);
-    }
-    console.log(expoPushToken, type, device_id, device_type);
+    let user: any = req.user;
+
     // Validate inputs
     if (!expoPushToken || !type || !device_id || !device_type) {
       return errorResponse(
@@ -326,10 +322,7 @@ export const addToken = async (req: Request, res: Response) => {
     }
 
     // Check if the token already exists
-    const existingToken = await ExpoPushToken.findOne({
-      expoPushToken: expoPushToken,
-      device_id: device_id,
-    });
+    const existingToken = await ExpoPushToken.findOne({ _id: expoPushToken });
     if (existingToken) {
       return successResponse(res, "Token already exists", {
         token: existingToken,
@@ -344,22 +337,19 @@ export const addToken = async (req: Request, res: Response) => {
 
     // Create a new token
     const newToken = new ExpoPushToken({
-      expoPushToken,
+      _id: expoPushToken,
       type,
       active: true,
       device_id,
       device_type,
-      user_id: user,
     });
-    existingUser.expoPushToken = expoPushToken;
-    await existingUser.save();
+
     await newToken.save();
 
     return successResponse(res, "Expo push token added successfully", {
       token: newToken,
     });
   } catch (error: any) {
-    console.log(error);
     return errorResponse(res, error.message || "Server error", 500);
   }
 };

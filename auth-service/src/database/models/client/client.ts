@@ -2,13 +2,15 @@ import mongoose, { Schema, Document } from "mongoose";
 
 // Interface for TypeScript typing
 export interface IClient extends Document {
-  profile?: mongoose.Types.ObjectId;
+  profile: mongoose.Types.ObjectId;
+  _id: mongoose.Types.ObjectId;
   current_hotel?: mongoose.Types.ObjectId;
   visited_hotels: mongoose.Types.ObjectId[];
   notifications: boolean;
   name: string;
   sounds: boolean;
   createdAt: Date;
+  activities: string[];
 }
 
 // Schema Definition
@@ -16,6 +18,7 @@ const clientSchema = new Schema<IClient>({
   profile: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Profile",
+    required: true,
   },
   current_hotel: { type: mongoose.Schema.Types.ObjectId, ref: "Hotel" },
   name: {
@@ -25,6 +28,7 @@ const clientSchema = new Schema<IClient>({
   notifications: { type: Boolean, default: true },
   sounds: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
+  activities: [{ type: String }],
 });
 
 // Exporting the Model

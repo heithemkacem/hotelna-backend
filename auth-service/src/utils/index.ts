@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { ValidationError } from "joi";
 
 // Error Handling Class
 class ApiError extends Error {
@@ -52,7 +53,11 @@ const successResponse = (
 };
 
 // Error Response
-const errorResponse = (res: any, message = "", statusCode = 400) => {
+const errorResponse = (
+  res: any,
+  message: string | ValidationError,
+  statusCode = 400
+) => {
   return res.status(statusCode).json({
     ok: false,
     status: "Failed",
