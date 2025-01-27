@@ -205,14 +205,36 @@ const loginGoogle = async (req: Request, res: Response) => {
       throw new ApiError(400, "Email or name not provided by Google.");
     }
 
-    const profile = await Profile.findOne({ email });
-    if (!profile) {
-      return res.status(404).json({ message: "User not registered." });
-    }
+    // Check if profile exists
+    let profile = await Profile.findOne({ email });
+    let client;
 
-    const client = await Client.findOne({ profile: profile._id });
-    if (!client) {
-      throw new ApiError(404, "Client data not found.");
+    if (!profile) {
+      // Create new profile and client if not exist
+      client = new Client({
+        visited_hotels: [],
+        notifications: true,
+        sounds: true,
+        name: name,
+      });
+      await client.save();
+
+      profile = new Profile({
+        name,
+        email,
+        type: "client",
+        user_id: client._id,
+        source: "google",
+      });
+      await profile.save();
+
+      client.profile = profile._id as unknown as mongoose.Types.ObjectId;
+      await client.save();
+    } else {
+      client = await Client.findOne({ profile: profile._id });
+      if (!client) {
+        throw new ApiError(404, "Client data not found.");
+      }
     }
 
     const token = await createSendToken(profile, client, res);
@@ -221,8 +243,6 @@ const loginGoogle = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Google login failed.", 500);
   }
 };
-
-// Facebook Login function
 const loginFB = async (req: Request, res: Response) => {
   try {
     const { accessToken } = req.body;
@@ -237,14 +257,36 @@ const loginFB = async (req: Request, res: Response) => {
       throw new ApiError(400, "Email not provided by Facebook.");
     }
 
-    const profile = await Profile.findOne({ email });
-    if (!profile) {
-      return res.status(404).json({ message: "User not registered." });
-    }
+    // Check if profile exists
+    let profile = await Profile.findOne({ email });
+    let client;
 
-    const client = await Client.findOne({ profile: profile._id });
-    if (!client) {
-      throw new ApiError(404, "Client data not found.");
+    if (!profile) {
+      // Create new profile and client if not exist
+      client = new Client({
+        visited_hotels: [],
+        notifications: true,
+        sounds: true,
+        name: name || "Facebook User",
+      });
+      await client.save();
+
+      profile = new Profile({
+        name: name || "Facebook User",
+        email,
+        type: "client",
+        user_id: client._id,
+        source: "facebook",
+      });
+      await profile.save();
+
+      client.profile = profile._id as unknown as mongoose.Types.ObjectId;
+      await client.save();
+    } else {
+      client = await Client.findOne({ profile: profile._id });
+      if (!client) {
+        throw new ApiError(404, "Client data not found.");
+      }
     }
 
     const token = await createSendToken(profile, client, res);
@@ -257,4 +299,6 @@ const loginFB = async (req: Request, res: Response) => {
 export default {
   register,
   login,
+  loginGoogle,
+  loginFB,
 };
