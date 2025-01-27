@@ -1,9 +1,8 @@
 import bcrypt from "bcryptjs";
 import { ValidationError } from "joi";
-import { OAuth2Client } from "google-auth-library";
+import config from "../config/config";
 // Error Handling Class
-const CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; // Replace with your Google Client ID
-const client = new OAuth2Client(CLIENT_ID);
+
 class ApiError extends Error {
   statusCode: number;
   isOperational: boolean;
@@ -79,19 +78,35 @@ export const validateToken = async (
   throw new Error("Invalid_provider");
 };
 export const validateGoogleToken = async (idToken: string) => {
-  try {
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: CLIENT_ID, // Specify the client ID of the app that accesses the backend
-    });
+  const googleApiUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`;
 
-    const payload = ticket.getPayload();
-    if (!payload) {
-      throw new Error("Invalid Google token payload");
+  try {
+    const response = await fetch(googleApiUrl);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error_description || "Failed to validate Google token"
+      );
+    }
+
+    // Ensure the token is issued to one of your client IDs
+    const audience = [
+      config.ANDROID_CLIENT_ID,
+      config.IOS_CLIENT_ID,
+      config.WEB_CLIENT_ID,
+    ];
+
+    if (!audience.includes(data.aud)) {
+      throw new Error("Token audience mismatch");
     }
 
     // Extract necessary information
-    const { email, name } = payload;
+    const { email, name } = data;
+
+    if (!email || !name) {
+      throw new Error("Email or name not provided by Google");
+    }
 
     return { email, name };
   } catch (error) {
