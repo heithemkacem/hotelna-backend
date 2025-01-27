@@ -17,7 +17,6 @@ const clientSchema = new Schema<IClient>({
   profile: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Profile",
-    required: true,
   },
   current_hotel: { type: mongoose.Schema.Types.ObjectId, ref: "Hotel" },
   name: {

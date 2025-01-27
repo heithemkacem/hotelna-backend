@@ -97,6 +97,7 @@ const register = async (req: Request, res: Response) => {
       password: await encryptPassword(password),
       type: "client",
       user_id: client._id,
+      source: "app",
     })) as IProfile;
     client.profile = profile._id as unknown as mongoose.Types.ObjectId;
     await client.save();
@@ -116,12 +117,12 @@ const register = async (req: Request, res: Response) => {
 const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-
+    console.log(email);
     // Find the profile by email and include the password field
     const profile = await Profile.findOne({ email }).select(
-      "+password loginHistory"
+      "password loginHistory isVerified isPhoneVerified type"
     );
-
+    console.log(profile);
     // If no profile is found or the password is incorrect
     if (
       !profile ||
@@ -163,6 +164,7 @@ const login = async (req: Request, res: Response) => {
     } else {
       throw new ApiError(400, "Invalid user type.");
     }
+    console.log(new Date().toISOString());
     profile.loginHistory.unshift({
       action: "login",
       date: new Date().toISOString(),
@@ -173,7 +175,16 @@ const login = async (req: Request, res: Response) => {
     console.log(token);
 
     // Send success response with the token
-    return successResponse(res, "User logged in successfully", { token });
+    return successResponse(res, "User logged in successfully", {
+      token,
+      role:
+        profile.type === "client"
+          ? user.current_hotel
+            ? "client"
+            : "client-no-hotel"
+          : profile.type,
+      userId: profile._id,
+    });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }

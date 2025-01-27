@@ -77,29 +77,20 @@ const viewLoginHistory = async (
 const enterHotel = async (req: any, res: Response) => {
   try {
     const { hotelKey } = req.body;
-    const userId = req.user?.client.id; // Get the user ID from the middleware
-
-    if (!userId) {
-      return errorResponse(res, "Unauthorized", 401);
-    }
-
+    const userId = req.user?.client_id; // Get the user ID from the middleware
     // Find the client and their profile
     const client = (await Client.findById(userId)) as any;
-    const profile = (await Profile.findById(client?.profile)) as any;
-
+    const profile = (await Profile.findById(req.user?.id)) as any;
     if (!client || !profile) {
       return errorResponse(res, "Client or profile not found", 404);
     }
-
     // Find the hotel by key
     const hotel = (await Hotel.findOne({ key: hotelKey })) as any;
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
     }
-
     // Update the client's current hotel
     client.current_hotel = hotel._id;
-
     // Add the hotel to the client's visited hotels if not already there
     if (
       !client.visited_hotels.some(
@@ -108,17 +99,12 @@ const enterHotel = async (req: any, res: Response) => {
     ) {
       client.visited_hotels.push(hotel._id);
     }
-
     // Add an entry to the profile's login history
     const date = new Date().toLocaleString(); // Format the date and time
-    if (!profile.loginHistory) {
-      profile.loginHistory = [];
-    }
     profile.loginHistory.unshift({
       action: "enter-hotel",
-      date: new Date().toISOString(),
+      date: date,
     });
-
     // Add the client to the hotel's current clients if not already there
     if (
       !hotel.current_clients.some(
@@ -127,13 +113,15 @@ const enterHotel = async (req: any, res: Response) => {
     ) {
       hotel.current_clients.push(client._id);
     }
-
     // Save all changes
     await client.save();
     await profile.save();
     await hotel.save();
-
-    return successResponse(res, "Successfully entered the hotel");
+    return successResponse(res, "Successfully entered the hotel", {
+      token: req.token,
+      role: req.user.type,
+      userId: req.user.id,
+    });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }
