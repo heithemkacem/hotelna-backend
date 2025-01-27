@@ -67,7 +67,7 @@ export const verifyToken = (req: any, res: any, next: any) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       id: string;
     };
-
+    req.token = token;
     req.user = decoded;
 
     next();
