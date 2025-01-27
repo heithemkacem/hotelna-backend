@@ -9,6 +9,7 @@ import {
   isPasswordMatch,
   successResponse,
   errorResponse,
+  validateToken,
 } from "../utils";
 import config from "../config/config";
 import { generateOTP } from "../utils/index";
@@ -189,6 +190,70 @@ const login = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
+
+const loginGoogle = async (req: Request, res: Response) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      throw new ApiError(400, "Google ID token is required.");
+    }
+
+    const googleData = await validateToken("GOOGLE", idToken);
+    const { email, name } = googleData;
+
+    if (!email || !name) {
+      throw new ApiError(400, "Email or name not provided by Google.");
+    }
+
+    const profile = await Profile.findOne({ email });
+    if (!profile) {
+      return res.status(404).json({ message: "User not registered." });
+    }
+
+    const client = await Client.findOne({ profile: profile._id });
+    if (!client) {
+      throw new ApiError(404, "Client data not found.");
+    }
+
+    const token = await createSendToken(profile, client, res);
+    return successResponse(res, "Google login successful", { token });
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Google login failed.", 500);
+  }
+};
+
+// Facebook Login function
+const loginFB = async (req: Request, res: Response) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      throw new ApiError(400, "Facebook access token is required.");
+    }
+
+    const facebookData = await validateToken("FACEBOOK", accessToken);
+    const { email, name } = facebookData;
+
+    if (!email) {
+      throw new ApiError(400, "Email not provided by Facebook.");
+    }
+
+    const profile = await Profile.findOne({ email });
+    if (!profile) {
+      return res.status(404).json({ message: "User not registered." });
+    }
+
+    const client = await Client.findOne({ profile: profile._id });
+    if (!client) {
+      throw new ApiError(404, "Client data not found.");
+    }
+
+    const token = await createSendToken(profile, client, res);
+    return successResponse(res, "Facebook login successful", { token });
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Facebook login failed.", 500);
+  }
+};
+
 export default {
   register,
   login,
