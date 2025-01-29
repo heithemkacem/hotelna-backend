@@ -6,6 +6,8 @@ const userRouter = Router();
 
 userRouter.post("/register", AuthController.register as any);
 userRouter.post("/login", AuthController.login as any);
+userRouter.post("/google", AuthController.loginGoogle as any);
+userRouter.post("/facebook", AuthController.loginFB as any);
 //verify profile
 userRouter.post("/validate", OtpController.validateOTP as any);
 //resend otp

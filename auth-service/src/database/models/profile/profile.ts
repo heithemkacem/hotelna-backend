@@ -25,7 +25,7 @@ export interface IProfile extends Document {
 }
 const profileSchema = new Schema<IProfile>({
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String },
   phone: { type: String },
   isPhoneVerified: { type: Boolean, default: false },
   type: {

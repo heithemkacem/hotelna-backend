@@ -9,6 +9,7 @@ import {
   isPasswordMatch,
   successResponse,
   errorResponse,
+  validateToken,
 } from "../utils";
 import config from "../config/config";
 import { generateOTP } from "../utils/index";
@@ -86,8 +87,6 @@ const register = async (req: Request, res: Response) => {
     });
     const client = (await Client.create({
       visited_hotels: [],
-      notifications: true,
-      sounds: true,
       name: name,
     })) as IClient;
 
@@ -189,7 +188,140 @@ const login = async (req: Request, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
+
+const loginGoogle = async (req: Request, res: Response) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      throw new ApiError(400, "Google ID token is required.");
+    }
+
+    const googleData = await validateToken("GOOGLE", idToken);
+    console.log(googleData);
+    const { email, name, picture, email_verified } = googleData as any;
+
+    if (!email || !name) {
+      throw new ApiError(400, "Email or name not provided by Google.");
+    }
+
+    // Check if profile exists
+    let profile = await Profile.findOne({ email });
+    let client;
+
+    if (!profile) {
+      // Create new profile and client if not exist
+      client = new Client({
+        visited_hotels: [],
+        name: name,
+      });
+      await client.save();
+
+      profile = new Profile({
+        name,
+        email,
+        type: "client",
+        user_id: client._id,
+        source: "google",
+        isVerified: email_verified,
+      });
+      await profile.save();
+
+      client.profile = profile._id as unknown as mongoose.Types.ObjectId;
+      await client.save();
+    } else {
+      client = await Client.findOne({ profile: profile._id });
+      if (!client) {
+        throw new ApiError(404, "Client data not found.");
+      }
+    }
+    if (!profile.isPhoneVerified) {
+      return res.json({
+        ok: false,
+        status: "VerifyPhone",
+        message: "Account is not verified. Please verify your email first.",
+        email: profile.email,
+      });
+    }
+
+    const token = await createSendToken(profile, client, res);
+    return successResponse(res, "Google login successful", {
+      token,
+      role: client.current_hotel ? "client" : "client-no-hotel",
+      userId: profile._id,
+    });
+  } catch (error: any) {
+    console.log(error);
+    return errorResponse(res, error.message || "Google login failed.", 500);
+  }
+};
+const loginFB = async (req: Request, res: Response) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      throw new ApiError(400, "Facebook access token is required.");
+    }
+
+    const facebookData = await validateToken("FACEBOOK", accessToken);
+    const { email, name } = facebookData;
+
+    if (!email) {
+      throw new ApiError(400, "Email not provided by Facebook.");
+    }
+
+    // Check if profile exists
+    let profile = await Profile.findOne({ email });
+    let client;
+
+    if (!profile) {
+      // Create new profile and client if not exist
+      client = new Client({
+        visited_hotels: [],
+        name: name || "Facebook User",
+      });
+      await client.save();
+
+      profile = new Profile({
+        name: name || "Facebook User",
+        email,
+        type: "client",
+        user_id: client._id,
+        source: "facebook",
+        isVerified: true,
+        isPhoneVerified: false,
+      });
+      await profile.save();
+
+      client.profile = profile._id as unknown as mongoose.Types.ObjectId;
+      await client.save();
+    } else {
+      client = await Client.findOne({ profile: profile._id });
+      if (!client) {
+        throw new ApiError(404, "Client data not found.");
+      }
+    }
+    if (!profile.isPhoneVerified) {
+      return res.json({
+        ok: false,
+        status: "VerifyPhone",
+        message: "Account is not verified. Please verify your email first.",
+        email: profile.email,
+      });
+    }
+    const token = await createSendToken(profile, client, res);
+
+    return successResponse(res, "Google login successful", {
+      token,
+      role: client.current_hotel ? "client" : "client-no-hotel",
+      userId: profile._id,
+    });
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Facebook login failed.", 500);
+  }
+};
+
 export default {
   register,
   login,
+  loginGoogle,
+  loginFB,
 };

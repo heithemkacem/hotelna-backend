@@ -13,6 +13,9 @@ const {
   RESET_PASSWORD_SECRET,
   accountSid,
   authToken,
+  ANDROID_CLIENT_ID,
+  IOS_CLIENT_ID,
+  WEB_CLIENT_ID,
 } = process.env;
 const queue = {
   requestQueue: "USER_DETAILS_REQUEST",
@@ -34,4 +37,7 @@ export default {
     authToken,
   },
   queue,
+  ANDROID_CLIENT_ID,
+  IOS_CLIENT_ID,
+  WEB_CLIENT_ID,
 };
