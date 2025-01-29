@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import { ValidationError } from "joi";
 import config from "../config/config";
+import { OAuth2Client } from "google-auth-library";
+const oAuth2Client = new OAuth2Client(config.WEB_CLIENT_ID);
 // Error Handling Class
 
 class ApiError extends Error {
@@ -78,40 +80,59 @@ export const validateToken = async (
   throw new Error("Invalid_provider");
 };
 export const validateGoogleToken = async (idToken: string) => {
-  const googleApiUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`;
-
   try {
-    const response = await fetch(googleApiUrl);
-    const data = await response.json();
+    // Verify the ID token using Google's official library
+    const ticket = await oAuth2Client.verifyIdToken({
+      idToken,
+      audience: config.WEB_CLIENT_ID, // Verify this matches your client ID
+    });
 
-    if (!response.ok) {
-      throw new Error(
-        data.error_description || "Failed to validate Google token"
-      );
+    // Get the user payload from the ticket
+    const payload = ticket.getPayload();
+
+    if (!payload) {
+      throw new Error("Invalid token payload");
     }
 
-    // Ensure the token is issued to one of your client IDs
-    const audience = [
-      config.ANDROID_CLIENT_ID,
-      config.IOS_CLIENT_ID,
-      config.WEB_CLIENT_ID,
-    ];
-
-    if (!audience.includes(data.aud)) {
+    // Verify the token audience matches your client ID
+    if (!payload.aud.includes(config.WEB_CLIENT_ID as string)) {
       throw new Error("Token audience mismatch");
     }
 
-    // Extract necessary information
-    const { email, name } = data;
-
-    if (!email || !name) {
-      throw new Error("Email or name not provided by Google");
+    // Verify the token issuer
+    if (
+      payload.iss !== "https://accounts.google.com" &&
+      payload.iss !== "accounts.google.com"
+    ) {
+      throw new Error("Invalid token issuer");
     }
 
-    return { email, name };
+    // Check for required fields
+    if (!payload.email || !payload.name) {
+      throw new Error("Missing required user information");
+    }
+
+    // Return standardized user information
+    return {
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+      email_verified: payload.email_verified,
+    };
   } catch (error) {
-    console.error("Error validating Google ID token:", error);
-    throw new Error("Failed to validate Google token");
+    console.error("Google token validation error:", error);
+
+    // Handle specific error cases
+    if (error instanceof Error) {
+      if (error.message.includes("Token used too late")) {
+        throw new Error("Expired token");
+      }
+      if (error.message.includes("Malformed")) {
+        throw new Error("Invalid token format");
+      }
+    }
+
+    throw new Error("Authentication failed: Invalid Google token");
   }
 };
 const validateFacebookToken = async (accessToken: string) => {
@@ -121,7 +142,7 @@ const validateFacebookToken = async (accessToken: string) => {
   try {
     const response = await fetch(facebookApiUrl);
     const data = await response.json();
-
+    console.log(data);
     if (!response.ok) {
       throw new Error(
         data.error?.message || "Failed to fetch user data from Facebook API"
@@ -130,6 +151,7 @@ const validateFacebookToken = async (accessToken: string) => {
 
     // Ensure both name and email are present in the response
     const { name, email } = data;
+    console.log(data);
     if (!name || !email) {
       throw new Error("Name or email not provided by Facebook");
     }

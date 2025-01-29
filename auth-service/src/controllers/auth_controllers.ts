@@ -87,8 +87,6 @@ const register = async (req: Request, res: Response) => {
     });
     const client = (await Client.create({
       visited_hotels: [],
-      notifications: true,
-      sounds: true,
       name: name,
     })) as IClient;
 
@@ -199,7 +197,8 @@ const loginGoogle = async (req: Request, res: Response) => {
     }
 
     const googleData = await validateToken("GOOGLE", idToken);
-    const { email, name } = googleData;
+    console.log(googleData);
+    const { email, name, picture, email_verified } = googleData as any;
 
     if (!email || !name) {
       throw new ApiError(400, "Email or name not provided by Google.");
@@ -213,8 +212,6 @@ const loginGoogle = async (req: Request, res: Response) => {
       // Create new profile and client if not exist
       client = new Client({
         visited_hotels: [],
-        notifications: true,
-        sounds: true,
         name: name,
       });
       await client.save();
@@ -225,6 +222,7 @@ const loginGoogle = async (req: Request, res: Response) => {
         type: "client",
         user_id: client._id,
         source: "google",
+        isVerified: email_verified,
       });
       await profile.save();
 
@@ -236,10 +234,23 @@ const loginGoogle = async (req: Request, res: Response) => {
         throw new ApiError(404, "Client data not found.");
       }
     }
+    if (!profile.isPhoneVerified) {
+      return res.json({
+        ok: false,
+        status: "VerifyPhone",
+        message: "Account is not verified. Please verify your email first.",
+        email: profile.email,
+      });
+    }
 
     const token = await createSendToken(profile, client, res);
-    return successResponse(res, "Google login successful", { token });
+    return successResponse(res, "Google login successful", {
+      token,
+      role: client.current_hotel ? "client" : "client-no-hotel",
+      userId: profile._id,
+    });
   } catch (error: any) {
+    console.log(error);
     return errorResponse(res, error.message || "Google login failed.", 500);
   }
 };
@@ -265,8 +276,6 @@ const loginFB = async (req: Request, res: Response) => {
       // Create new profile and client if not exist
       client = new Client({
         visited_hotels: [],
-        notifications: true,
-        sounds: true,
         name: name || "Facebook User",
       });
       await client.save();
@@ -277,6 +286,8 @@ const loginFB = async (req: Request, res: Response) => {
         type: "client",
         user_id: client._id,
         source: "facebook",
+        isVerified: true,
+        isPhoneVerified: false,
       });
       await profile.save();
 
@@ -288,9 +299,21 @@ const loginFB = async (req: Request, res: Response) => {
         throw new ApiError(404, "Client data not found.");
       }
     }
-
+    if (!profile.isPhoneVerified) {
+      return res.json({
+        ok: false,
+        status: "VerifyPhone",
+        message: "Account is not verified. Please verify your email first.",
+        email: profile.email,
+      });
+    }
     const token = await createSendToken(profile, client, res);
-    return successResponse(res, "Facebook login successful", { token });
+
+    return successResponse(res, "Google login successful", {
+      token,
+      role: client.current_hotel ? "client" : "client-no-hotel",
+      userId: profile._id,
+    });
   } catch (error: any) {
     return errorResponse(res, error.message || "Facebook login failed.", 500);
   }
