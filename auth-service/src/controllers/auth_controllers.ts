@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { Profile, IProfile, IClient, Hotel } from "../database/index"; // Profile model
+import { Profile, IProfile, IClient, Hotel, Admin } from "../database/index"; // Profile model
 import { Client, OTP } from "../database/index"; // Client and OTP models
 import bcrypt from "bcryptjs";
 import {
@@ -157,6 +157,11 @@ const login = async (req: Request, res: Response) => {
       }
     } else if (profile.type === "hotel") {
       user = await Hotel.findOne({ profile: profile._id });
+      if (!user) {
+        throw new ApiError(404, "Hotel data not found.");
+      }
+    } else if (profile.type === ("admin" as any)) {
+      user = await Admin.findOne({ profile: profile._id });
       if (!user) {
         throw new ApiError(404, "Hotel data not found.");
       }

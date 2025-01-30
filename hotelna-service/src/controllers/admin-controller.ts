@@ -1,5 +1,13 @@
 import { Request, Response } from "express";
-import { Client, Hotel, Profile, Settings } from "../database/index";
+import {
+  Admin,
+  Client,
+  IAdmin,
+  Hotel,
+  IProfile,
+  Profile,
+  Settings,
+} from "../database/index";
 import { successResponse, errorResponse } from "../utils";
 import QRCode from "qrcode";
 import bcrypt from "bcrypt";
@@ -7,6 +15,10 @@ import { generatePassword } from "../utils";
 import { rabbitMQService } from "../services/RabbitMQService";
 import { Service } from "../database/index";
 import ArchivedHotel from "../database/models/archive/archive";
+import config from "../config/config";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client } from "../config/aws";
+import ImageModel from "../database/models/images/Images";
 export const getHotels = async (req: Request, res: Response) => {
   try {
     const {
@@ -58,90 +70,175 @@ export const getHotels = async (req: Request, res: Response) => {
 };
 
 export const createHotel = async (req: Request, res: Response) => {
+  let hotelProfile: any = null;
+  let newHotel: any = null;
+  const bucketName = config.AWS_ACCESS_POINT;
+
   try {
-    const { name, description, price, images } = req.body;
+    const files = req.files as any;
+    const {
+      name,
+      email,
+      description,
+      phone,
+      website,
+      rating,
+      location,
+      position,
+    } = req.body;
 
-    if (!name || !description || !price) {
-      return errorResponse(res, "Name, description, and price are required.");
-    }
-
-    if (images && (!Array.isArray(images) || images.length > 6)) {
-      return errorResponse(
-        res,
-        "Images must be an array with a maximum of 6 URLs."
-      );
-    }
-
-    // Initialize the key variable
+    // Generate unique key
     let newKey = "";
     let isUnique = false;
-
-    // Generate a unique random 4-digit key
     while (!isUnique) {
-      const potentialKey = Math.floor(Math.random() * 9000 + 1000).toString(); // Random 4-digit number
+      const potentialKey = Math.floor(Math.random() * 9000 + 1000).toString();
       const existingHotel = await Hotel.findOne({ key: potentialKey });
       if (!existingHotel) {
         isUnique = true;
-        newKey = potentialKey; // Assign the unique key
+        newKey = potentialKey;
       }
     }
 
-    // Generate a QR code containing the key
+    // Create QR code
     const qrCode = await QRCode.toDataURL(newKey);
 
-    // Generate a password for the hotel profile
+    // Create hotel profile
     const rawPassword = generatePassword();
-    console.log(rawPassword);
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
-    // Create a unique email for the hotel
-    const hotelEmail = `${name.replace(/\s+/g, "").toLowerCase()}@example.com`;
-    const hotelProfile = await Profile.create({
-      email: hotelEmail,
+    hotelProfile = await Profile.create({
+      email,
+      name,
       password: hashedPassword,
       type: "hotel",
       isVerified: true,
     });
 
-    // Create settings for the hotel profile
-    await Settings.create({
-      user: hotelProfile._id,
-      userType: "Hotel",
-      notification: true,
-      emailNotification: true,
-      bookingUpdate: true,
-      newMessage: true,
-      marketing: true,
-    });
-
-    // Create the new hotel document
-    const newHotel = await Hotel.create({
+    // Create hotel document
+    newHotel = await Hotel.create({
       profile: hotelProfile._id,
-      name,
-      description,
-      price,
       key: newKey,
       qrCode,
-      images: images || [],
+      name,
+      email,
+      description,
+      phone,
+      website,
+      rating,
+      location,
+      position,
     });
 
-    // Send the email notification using RabbitMQ
+    // Process image uploads with rollback capability
+    const uploadPromises = files.map(async (file: any) => {
+      let key;
+      try {
+        key = `images/${Date.now()}-${file.originalname}`;
+        const params = {
+          Bucket: bucketName,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ACL: "public-read",
+        } as any;
+
+        await s3Client.send(new PutObjectCommand(params));
+        const publicUrl = `https://d18l8bvwzu4ft2.cloudfront.net/${key}`;
+
+        const image = await ImageModel.create({
+          url: publicUrl,
+          name: file.originalname,
+          size: file.size,
+          key,
+          mimetype: file.mimetype,
+          hotel: newHotel._id,
+        });
+
+        return { image, key };
+      } catch (error) {
+        // Cleanup uploaded S3 object if it was created
+        if (key) {
+          await s3Client
+            .send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }))
+            .catch((e) => console.error("S3 cleanup failed:", e));
+        }
+        throw error;
+      }
+    });
+
+    // Handle image upload results
+    const results = await Promise.allSettled(uploadPromises);
+    const failedUploads = results.filter((r) => r.status === "rejected");
+
+    if (failedUploads.length > 0) {
+      // Cleanup successful uploads
+      const successfulUploads = results
+        .filter(
+          (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
+        )
+        .map((r) => r.value);
+
+      for (const { image, key } of successfulUploads) {
+        await ImageModel.findByIdAndDelete(image._id);
+        await s3Client
+          .send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }))
+          .catch((e) => console.error("S3 cleanup failed:", e));
+      }
+
+      throw new Error("Some image uploads failed");
+    }
+
+    // Attach images to hotel
+    const successfulImages = results.map(
+      (r: any) => (r as PromiseFulfilledResult<any>).value.image
+    );
+    newHotel.images.push(...successfulImages.map((img: any) => img._id));
+    await newHotel.save();
+
+    // Send welcome email
     await rabbitMQService.sendEmailNotification(
-      hotelEmail,
+      email,
       "Welcome to Our Platform",
-      `Dear ${name},\n\nYour hotel account has been created successfully. Here are your credentials:\n\nEmail: ${hotelEmail}\nPassword: ${rawPassword}\n\nBest regards,\nYour Company`
+      `Dear ${name},\n\nYour hotel account has been created successfully.\nEmail: ${email}\nPassword: ${rawPassword}`
     );
 
     return successResponse(res, "Hotel created successfully", {
       hotel: newHotel,
       qrCode,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating hotel:", error);
-    return errorResponse(res, "Failed to create hotel", 500);
+
+    // Cleanup resources in reverse creation order
+    const cleanupActions = [];
+
+    if (newHotel) {
+      // Delete associated images
+      const images = await ImageModel.find({ hotel: newHotel._id });
+      for (const image of images) {
+        cleanupActions.push(
+          ImageModel.findByIdAndDelete(image._id),
+          s3Client
+            .send(
+              new DeleteObjectCommand({ Bucket: bucketName, Key: image.key })
+            )
+            .catch((e) => console.error("S3 cleanup failed:", e))
+        );
+      }
+
+      cleanupActions.push(Hotel.findByIdAndDelete(newHotel._id));
+    }
+
+    if (hotelProfile) {
+      cleanupActions.push(Profile.findByIdAndDelete(hotelProfile._id));
+    }
+
+    // Execute all cleanup actions
+    await Promise.all(cleanupActions);
+
+    return errorResponse(res, "Failed to create hotel: " + error.message, 500);
   }
 };
-
 // Edit Hotel
 export const editHotelByKey = async (req: Request, res: Response) => {
   try {
@@ -171,25 +268,21 @@ export const editHotelByKey = async (req: Request, res: Response) => {
 export const deleteHotelByKey = async (req: Request, res: Response) => {
   try {
     const { hotelId } = req.body;
-
     if (!hotelId) {
       return errorResponse(res, "Hotel ID is required.", 400);
     }
-
     // Find the hotel by ID
     const hotel = await Hotel.findById(hotelId);
-
     if (!hotel) {
       return errorResponse(res, "Hotel not found.", 404);
     }
-
     // Archive the hotel by copying its data to the ArchivedHotel collection
     await ArchivedHotel.create({
       profile: hotel.profile,
       name: hotel.name,
       description: hotel.description,
       location: hotel.location,
-      coordinates: hotel.coordinates,
+      position: hotel.position,
       stars: 0,
       sponsored: hotel.sponsored,
       services: hotel.services,
@@ -200,10 +293,8 @@ export const deleteHotelByKey = async (req: Request, res: Response) => {
       key: hotel.key,
       archivedAt: new Date(),
     });
-
     // Delete the hotel
     await hotel.deleteOne();
-
     return successResponse(res, "Hotel archived and deleted successfully.");
   } catch (error) {
     console.error("Error deleting hotel:", error);
@@ -479,5 +570,41 @@ export const deleteService = async (req: any, res: any) => {
       status: "Error",
       message: "Failed to delete service.",
     });
+  }
+};
+export const createAdminUser = async () => {
+  try {
+    const adminEmail = "admin@hotelna.com"; // Change this to your desired admin email
+    const adminPassword = "Hh123456789@"; // Change this to your desired admin password
+
+    // Check if an admin user already exists
+    const existingAdmin = await Profile.findOne({ role: "admin" });
+    if (existingAdmin) {
+      console.log("Admin user already exists.");
+      return;
+    }
+
+    // Hash the admin password
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    // Create the admin user
+    const profile: IProfile = new Profile({
+      email: adminEmail,
+      password: hashedPassword,
+      type: "admin",
+      isVerified: true,
+      phone: "+21625711161",
+      isPhoneVerified: true,
+    });
+    await profile.save();
+    const admin: IAdmin = new Admin({
+      profile: profile._id,
+    });
+    await admin.save();
+    profile.user_id = admin._id as any;
+    admin.save();
+    console.log("Admin user created successfully.");
+  } catch (error) {
+    console.error("Error creating admin user:", error);
   }
 };

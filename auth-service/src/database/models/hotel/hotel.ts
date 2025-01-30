@@ -4,8 +4,9 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IHotel extends Document {
   profile: mongoose.Types.ObjectId;
   name: string;
+  email: string;
   location?: string;
-  coordinates: { lat: number; long: number };
+  position: { latitude: number; longitude: number };
   description: string;
   sponsored: boolean;
   services: any;
@@ -27,11 +28,12 @@ const hotelSchema = new Schema<IHotel>({
     required: true,
   },
   name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   description: { type: String, required: true },
   location: { type: String },
-  coordinates: {
-    lat: { type: Number },
-    long: { type: Number },
+  position: {
+    latitude: { type: Number },
+    longitude: { type: Number },
   },
   sponsored: { type: Boolean, default: false },
   services: [
@@ -43,7 +45,7 @@ const hotelSchema = new Schema<IHotel>({
       },
       status: {
         type: String,
-        enum: ["dispo", "indispo", "en maintenance"],
+        enum: ["available", "unavailable", "under_maintance"],
         default: "dispo",
       },
     },
@@ -51,7 +53,7 @@ const hotelSchema = new Schema<IHotel>({
   blocked: { type: Boolean, default: false },
   rating: { type: Number, min: 0, max: 5, default: 0 },
   price: { type: Number, default: 0 },
-  images: [{ type: String }], // Added images field
+  images: [{ type: mongoose.Schema.Types.ObjectId, ref: "Images" }], // Added images field
   key: { type: Number, unique: true, required: true }, // Added key field
   qrCode: { type: String, required: true },
   current_clients: [{ type: mongoose.Schema.Types.ObjectId, ref: "Client" }],

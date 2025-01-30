@@ -264,8 +264,8 @@ const getClientDetails = async (req: Request, res: Response) => {
     // Find the client by the clientId and populate the necessary fields
     const client: any = await Client.findById(clientId)
       .populate("profile", "email phone type") // Populating profile fields
-      .populate("current_hotel", "name location coordinates") // Populating current hotel fields
-      .populate("visited_hotels", "name location coordinates"); // Populating visited hotels fields
+      .populate("current_hotel", "name location position") // Populating current hotel fields
+      .populate("visited_hotels", "name location position"); // Populating visited hotels fields
 
     if (!client) {
       return errorResponse(res, "Client not found", 404);
@@ -336,7 +336,11 @@ export const addToken = async (req: Request, res: Response) => {
     });
 
     await newToken.save();
-
+    // notification: true,
+    // emailNotification: true,
+    // bookingUpdate: true,
+    // newMessage: true,
+    // marketing: true,
     return successResponse(res, "Expo push token added successfully", {
       token: newToken,
     });
