@@ -7,6 +7,8 @@ import {
   IProfile,
   Profile,
   Settings,
+  IHotel,
+  IClient,
 } from "../database/index";
 import { successResponse, errorResponse } from "../utils";
 import QRCode from "qrcode";
@@ -70,23 +72,21 @@ export const getHotels = async (req: Request, res: Response) => {
 };
 
 export const createHotel = async (req: Request, res: Response) => {
+  console.log(req.body);
+  console.log(req.files);
+  if (!req.files || !Array.isArray(req.files)) {
+    return errorResponse(res, "No files uploaded", 400);
+  }
   let hotelProfile: any = null;
   let newHotel: any = null;
   const bucketName = config.AWS_ACCESS_POINT;
 
   try {
     const files = req.files as any;
-    const {
-      name,
-      email,
-      description,
-      phone,
-      website,
-      rating,
-      location,
-      position,
-    } = req.body;
-
+    console.log(files);
+    const { name, email, description, phone, website, rating, location } =
+      req.body;
+    const position = JSON.parse(req.body.position);
     // Generate unique key
     let newKey = "";
     let isUnique = false;
@@ -112,6 +112,7 @@ export const createHotel = async (req: Request, res: Response) => {
       password: hashedPassword,
       type: "hotel",
       isVerified: true,
+      source: "app",
     });
 
     // Create hotel document
@@ -329,30 +330,45 @@ export const deleteHotelByKey = async (req: Request, res: Response) => {
 // };
 export const getAllClients = async (req: any, res: any) => {
   try {
-    const { name, email, page = 1, limit = 10 } = req.query;
+    const { search, page = 1, limit = 4 } = req.query;
+    const query: any = { type: "client" };
 
-    const query: any = {};
-
-    if (name) {
-      query.name = { $regex: name, $options: "i" };
-    }
-    if (email) {
-      const profiles = await Profile.find({
-        email: { $regex: email, $options: "i" },
-      });
-      const profileIds = profiles.map((profile) => profile._id);
-      query.profile = { $in: profileIds };
+    // Combined search for name OR email
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
     }
 
     const skip = (Number(page) - 1) * Number(limit);
-    const clients = await Client.find(query)
-      .populate("profile", "email")
-      .skip(skip)
-      .limit(Number(limit));
 
-    const totalRecords = await Client.countDocuments(query);
+    // Single query with combined search
+    const [clients, totalRecords] = await Promise.all([
+      Profile.find(query)
+        .select("_id name email blocked createdAt")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      Profile.countDocuments(query),
+    ]);
+
     const totalPages = Math.ceil(totalRecords / Number(limit));
-
+    console.log({
+      ok: true,
+      status: "Success",
+      message: "Clients retrieved successfully",
+      data: {
+        clients,
+        pagination: {
+          currentPage: Number(page),
+          totalPages,
+          totalRecords,
+          hasNextPage: Number(page) < totalPages,
+        },
+      },
+    });
     return res.status(200).json({
       ok: true,
       status: "Success",
@@ -363,6 +379,7 @@ export const getAllClients = async (req: any, res: any) => {
           currentPage: Number(page),
           totalPages,
           totalRecords,
+          hasNextPage: Number(page) < totalPages,
         },
       },
     });
@@ -372,42 +389,11 @@ export const getAllClients = async (req: any, res: any) => {
       ok: false,
       status: "Error",
       message: "Error retrieving clients",
+      error: process.env.NODE_ENV === "development" ? error : undefined,
     });
   }
 };
-// export const blockUnblockClient = async (req: any, res: any) => {
-//   try {
-//     const { clientId } = req.body; // Get client ID from the request body
 
-//     // Find the client by ID
-//     const client = await Client.findById(clientId);
-//     if (!client) {
-//       return res.status(404).json({
-//         ok: false,
-//         status: 'Error',
-//         message: 'Client not found.',
-//       });
-//     }
-
-//     // Toggle the blocked status
-//     client.blocked = !client.blocked; // Toggle the blocked status
-//     await client.save();
-
-//     return res.status(200).json({
-//       ok: true,
-//       status: 'Success',
-//       message: `Client has been ${client.blocked ? 'blocked' : 'unblocked'} successfully.`,
-//       data: { client },
-//     });
-//   } catch (error) {
-//     console.error('Error blocking/unblocking client:', error);
-//     return res.status(500).json({
-//       ok: false,
-//       status: 'Error',
-//       message: 'Failed to block/unblock client.',
-//     });
-//   }
-// };
 export const blockUnblockProfile = async (req: any, res: any) => {
   try {
     const { profileId, action } = req.body; // Action can be "block" or "unblock"
@@ -439,7 +425,7 @@ export const blockUnblockProfile = async (req: any, res: any) => {
 export const deleteClient = async (req: any, res: any) => {
   try {
     const { clientId } = req.body;
-    const client = await Client.findById(clientId);
+    const client = await Profile.findById(clientId);
     if (!client) {
       return res.status(404).json({
         ok: false,
@@ -448,12 +434,18 @@ export const deleteClient = async (req: any, res: any) => {
       });
     }
 
-    const profile = await Profile.findById(client.profile);
+    const profile = (await Client.findById(client.user_id)) as any;
     if (profile) {
-      await Profile.deleteOne({ _id: profile._id });
+      if (profile.current_hotel) {
+        const hotel = (await Hotel.findById(profile.current_hotel)) as IHotel;
+        hotel.current_clients = hotel.current_clients.filter(
+          (clientId) => clientId.toString() !== profile._id.toString()
+        );
+        hotel.save();
+      }
+      await Client.deleteOne({ _id: profile._id });
     }
-
-    await Client.deleteOne({ _id: clientId });
+    await Profile.deleteOne({ _id: clientId });
 
     return res.status(200).json({
       ok: true,

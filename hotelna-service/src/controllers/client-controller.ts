@@ -313,7 +313,9 @@ export const addToken = async (req: Request, res: Response) => {
     }
 
     // Check if the token already exists
-    const existingToken = await ExpoPushToken.findOne({ _id: expoPushToken });
+    const existingToken = await ExpoPushToken.findOne({
+      expoPushToken: expoPushToken,
+    });
     if (existingToken) {
       return successResponse(res, "Token already exists", {
         token: existingToken,
@@ -328,7 +330,7 @@ export const addToken = async (req: Request, res: Response) => {
 
     // Create a new token
     const newToken = new ExpoPushToken({
-      _id: expoPushToken,
+      expoPushToken,
       type,
       active: true,
       device_id,
@@ -345,6 +347,7 @@ export const addToken = async (req: Request, res: Response) => {
       token: newToken,
     });
   } catch (error: any) {
+    console.log(error);
     return errorResponse(res, error.message || "Server error", 500);
   }
 };

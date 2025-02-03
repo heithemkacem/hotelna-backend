@@ -11,19 +11,12 @@ import {
   deleteService,
   blockUnblockProfile,
 } from "../controllers/admin-controller";
-import { validateRequest } from "../middleware";
-import { createHotelSchema } from "../validators/hotel.dto";
 import { upload } from "../config/aws";
 
 const router = express.Router();
 
 router.get("/hotels", getHotels);
-router.post(
-  "/hotel",
-  upload.array("images"),
-  validateRequest(createHotelSchema),
-  createHotel
-);
+router.post("/hotel", upload.array("images"), createHotel);
 router.put("/hotels/edit", editHotelByKey);
 router.delete("/hotels/delete", deleteHotelByKey);
 // router.patch('/hotels/block', toggleBlockHotelByKey);
