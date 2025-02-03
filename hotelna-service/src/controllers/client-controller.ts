@@ -264,8 +264,8 @@ const getClientDetails = async (req: Request, res: Response) => {
     // Find the client by the clientId and populate the necessary fields
     const client: any = await Client.findById(clientId)
       .populate("profile", "email phone type") // Populating profile fields
-      .populate("current_hotel", "name location coordinates") // Populating current hotel fields
-      .populate("visited_hotels", "name location coordinates"); // Populating visited hotels fields
+      .populate("current_hotel", "name location position") // Populating current hotel fields
+      .populate("visited_hotels", "name location position"); // Populating visited hotels fields
 
     if (!client) {
       return errorResponse(res, "Client not found", 404);
@@ -313,7 +313,9 @@ export const addToken = async (req: Request, res: Response) => {
     }
 
     // Check if the token already exists
-    const existingToken = await ExpoPushToken.findOne({ _id: expoPushToken });
+    const existingToken = await ExpoPushToken.findOne({
+      expoPushToken: expoPushToken,
+    });
     if (existingToken) {
       return successResponse(res, "Token already exists", {
         token: existingToken,
@@ -328,7 +330,7 @@ export const addToken = async (req: Request, res: Response) => {
 
     // Create a new token
     const newToken = new ExpoPushToken({
-      _id: expoPushToken,
+      expoPushToken,
       type,
       active: true,
       device_id,
@@ -336,11 +338,16 @@ export const addToken = async (req: Request, res: Response) => {
     });
 
     await newToken.save();
-
+    // notification: true,
+    // emailNotification: true,
+    // bookingUpdate: true,
+    // newMessage: true,
+    // marketing: true,
     return successResponse(res, "Expo push token added successfully", {
       token: newToken,
     });
   } catch (error: any) {
+    console.log(error);
     return errorResponse(res, error.message || "Server error", 500);
   }
 };

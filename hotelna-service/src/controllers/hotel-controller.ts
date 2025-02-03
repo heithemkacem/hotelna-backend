@@ -5,13 +5,15 @@ import mongoose from "mongoose";
 import { IService } from "../database/models/service/service";
 import ServiceRequest from "../database/models/serive-request/service-request";
 
-
 export const getHotelByCode = async (req: Request, res: Response) => {
   try {
     const { hotelCode } = req.params;
 
     // Find the hotel by its unique key
-    const hotel = await Hotel.findOne({ key: hotelCode }).populate("current_clients", "name email"); // Example: populate clients' details
+    const hotel = await Hotel.findOne({ key: hotelCode }).populate(
+      "current_clients",
+      "name email"
+    ); // Example: populate clients' details
 
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
@@ -25,8 +27,8 @@ export const getHotelByCode = async (req: Request, res: Response) => {
 
 export const addExistingServiceToHotel = async (req: any, res: Response) => {
   try {
-    const {  serviceKey } = req.body;
-const  hotelId = req.user?.client.id
+    const { serviceKey } = req.body;
+    const hotelId = req.user?.client.id;
     // Find the hotel
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) {
@@ -82,77 +84,77 @@ export const getHotelServices = async (req: Request, res: Response) => {
 
     // Map over the populated services array and return the name, description, and status
     const services = hotel.services
-    .filter((entry: any) => entry.status === 'dispo')
-    .map((entry: any) => ({
-      name: entry.service?.name, // Safe access in case service is undefined
-      description: entry.service?.description, // Safe access
-      status: entry.status,
-    }));
+      .filter((entry: any) => entry.status === "dispo")
+      .map((entry: any) => ({
+        name: entry.service?.name, // Safe access in case service is undefined
+        description: entry.service?.description, // Safe access
+        status: entry.status,
+      }));
 
     // Return the services
-    return successResponse(res, "Services retrieved successfully", { services });
+    return successResponse(res, "Services retrieved successfully", {
+      services,
+    });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
-
 
 export const getHotelCoordinates = async (req: Request, res: Response) => {
   try {
     const { hotelId } = req.params;
 
     // Find the hotel by its ID
-    const hotel = await Hotel.findById(hotelId).select("coordinates name");
+    const hotel = await Hotel.findById(hotelId).select("position name");
 
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
     }
 
     // Return the hotel's coordinates
-    return successResponse(res, "Hotel coordinates retrieved successfully", {
+    return successResponse(res, "Hotel position retrieved successfully", {
       hotelName: hotel.name,
-      coordinates: hotel.coordinates,
+      position: hotel.position,
     });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }
-}
+};
 export const getClientsInHotel = async (req: Request, res: Response) => {
   try {
     const { hotelId } = req.body;
 
-   
     const hotel = await Hotel.findById(hotelId).populate({
-      path: 'current_clients',
+      path: "current_clients",
       populate: {
-        path: 'profile', 
-        select: 'name email phone', 
+        path: "profile",
+        select: "name email phone",
       },
     });
 
     if (!hotel) {
-      return errorResponse(res, 'Hotel not found', 404);
+      return errorResponse(res, "Hotel not found", 404);
     }
 
     // Extract clients with name, email, and phone
     const clients = hotel.current_clients.map((client: any) => ({
       name: client.name,
-      email: client.profile?.email || 'N/A',
-      phone: client.profile?.phone || 'N/A',
+      email: client.profile?.email || "N/A",
+      phone: client.profile?.phone || "N/A",
     }));
 
-    return successResponse(res, 'Clients retrieved successfully', { clients });
+    return successResponse(res, "Clients retrieved successfully", { clients });
   } catch (error: any) {
-    return errorResponse(res, error.message || 'Server error', 500);
+    return errorResponse(res, error.message || "Server error", 500);
   }
 };
 export const getHotelServicesloggedIn = async (req: any, res: Response) => {
   try {
     // Retrieve the hotelId from req.user.client.id (as per your setup)
     const hotelId = req.user?.client.id;
-     console.log(hotelId)
+    console.log(hotelId);
     // Find the hotel using the hotelId
-    const hotel = await Hotel.findById(hotelId).populate('services.service');
+    const hotel = await Hotel.findById(hotelId).populate("services.service");
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
     }
@@ -169,29 +171,33 @@ export const getAllServices = async (req: any, res: Response) => {
   try {
     // Retrieve the hotelId from req.user.client.id (as per your setup)
     const hotelId = req.user.client.id;
-    
+
     // Extract pagination parameters from query string (defaults to page 1)
     const page = parseInt(req.query.page as string) || 1;
     const limit = 6; // Fixed 6 per page
-    
+
     // Find the hotel using the hotelId
-    const hotel = await Hotel.findById(hotelId).populate('services.service');
+    const hotel = await Hotel.findById(hotelId).populate("services.service");
     if (!hotel) {
       return errorResponse(res, "Hotel not found", 404);
     }
 
     // Get the services associated with the hotel
-    const hotelServices = hotel.services.map((serviceEntry: any) => serviceEntry.service.toString());
+    const hotelServices = hotel.services.map((serviceEntry: any) =>
+      serviceEntry.service.toString()
+    );
 
     // Find all services that are created by the admin and not already in the hotel
     const allServices = await Service.find({
-      _id: { $nin: hotelServices } // Exclude services that are already assigned to the hotel
+      _id: { $nin: hotelServices }, // Exclude services that are already assigned to the hotel
     })
-    .skip((page - 1) * limit)  // Skip the previous pages
-    .limit(limit) // Limit to 6 services per page
+      .skip((page - 1) * limit) // Skip the previous pages
+      .limit(limit); // Limit to 6 services per page
 
     // Total count of services (for pagination purposes)
-    const totalServices = await Service.countDocuments({ _id: { $nin: hotelServices } });
+    const totalServices = await Service.countDocuments({
+      _id: { $nin: hotelServices },
+    });
 
     // Return the services with pagination info
     return successResponse(res, "Services fetched successfully", {
@@ -199,8 +205,8 @@ export const getAllServices = async (req: any, res: Response) => {
       pagination: {
         totalPages: Math.ceil(totalServices / limit),
         currentPage: page,
-        totalServices
-      }
+        totalServices,
+      },
     });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
@@ -210,14 +216,18 @@ export const updateServiceStatus = async (req: any, res: Response) => {
   try {
     // Extract the hotelId from req.user.client.id (as per your setup)
     const hotelId = req.user.client.id;
-    
+
     // Extract service ID and the new status from the request body
     const { serviceId, status } = req.body;
 
     // Validate that the status is one of the allowed values
-    const validStatuses = ['dispo', 'indispo', 'en maintenance'];
+    const validStatuses = ["dispo", "indispo", "en maintenance"];
     if (!validStatuses.includes(status)) {
-      return errorResponse(res, "Invalid status. Valid values are 'dispo', 'indispo', 'en maintenance'.", 400);
+      return errorResponse(
+        res,
+        "Invalid status. Valid values are 'dispo', 'indispo', 'en maintenance'.",
+        400
+      );
     }
 
     // Find the hotel by its ID
@@ -227,7 +237,9 @@ export const updateServiceStatus = async (req: any, res: Response) => {
     }
 
     // Check if the service is associated with the hotel
-    const serviceIndex = hotel.services.findIndex((serviceEntry: any) => serviceEntry.service.toString() === serviceId);
+    const serviceIndex = hotel.services.findIndex(
+      (serviceEntry: any) => serviceEntry.service.toString() === serviceId
+    );
     if (serviceIndex === -1) {
       return errorResponse(res, "Service not found in this hotel", 404);
     }
@@ -239,7 +251,10 @@ export const updateServiceStatus = async (req: any, res: Response) => {
     await hotel.save();
 
     // Respond with success
-    return successResponse(res, "Service status updated successfully", { serviceId, status });
+    return successResponse(res, "Service status updated successfully", {
+      serviceId,
+      status,
+    });
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }
@@ -248,7 +263,7 @@ export const deleteServiceFromHotel = async (req: any, res: Response) => {
   try {
     // Extract the hotelId from req.user.client.id (as per your setup)
     const hotelId = req.user.client.id;
-    
+
     // Extract the service ID from the request parameters
     const { serviceId } = req.body;
 
@@ -259,8 +274,10 @@ export const deleteServiceFromHotel = async (req: any, res: Response) => {
     }
 
     // Find the index of the service to be deleted in the hotel's services array
-    const serviceIndex = hotel.services.findIndex((serviceEntry: any) => serviceEntry.service.toString() === serviceId);
-    
+    const serviceIndex = hotel.services.findIndex(
+      (serviceEntry: any) => serviceEntry.service.toString() === serviceId
+    );
+
     // If the service is not found in the hotel, return an error
     if (serviceIndex === -1) {
       return errorResponse(res, "Service not found in this hotel", 404);
@@ -330,7 +347,7 @@ export const updateHotelPosition = async (req: any, res: Response) => {
     // Update the hotel position
     const updatedHotel = await Hotel.findByIdAndUpdate(
       hotelId,
-      { "coordinates.lat": lat, "coordinates.long": long },
+      { "position.latitude": lat, "position.longitude": long },
       { new: true } // Return the updated document
     );
 
@@ -342,7 +359,7 @@ export const updateHotelPosition = async (req: any, res: Response) => {
       hotel: {
         id: updatedHotel._id,
         name: updatedHotel.name,
-        coordinates: updatedHotel.coordinates,
+        position: updatedHotel.position,
       },
     });
   } catch (error: any) {
