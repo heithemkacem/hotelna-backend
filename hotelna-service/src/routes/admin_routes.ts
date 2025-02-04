@@ -10,6 +10,7 @@ import {
   editService,
   deleteService,
   blockUnblockProfile,
+  getAllServices,
 } from "../controllers/admin-controller";
 import { upload } from "../config/aws";
 
@@ -19,14 +20,12 @@ router.get("/hotels", getHotels);
 router.post("/hotel", upload.array("images"), createHotel);
 router.put("/hotels/edit", editHotelByKey);
 router.delete("/hotels/delete", deleteHotelByKey);
-// router.patch('/hotels/block', toggleBlockHotelByKey);
 router.get("/clients", getAllClients);
 router.patch("/client/block-unblock", blockUnblockProfile);
 router.delete("/client/delete", deleteClient);
+router.get("/services", getAllServices);
 router.post("/services", createService);
-
 router.put("/services/", editService);
-
-router.delete("/services/", deleteService);
+router.delete("/service/", deleteService);
 
 export default router;

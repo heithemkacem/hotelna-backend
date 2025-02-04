@@ -463,17 +463,29 @@ export const deleteClient = async (req: any, res: any) => {
 };
 export const createService = async (req: any, res: any) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, key } = req.body;
 
-    if (!name || !description) {
+    // Validate required fields
+    if (!name || !description || !key) {
       return res.status(400).json({
         ok: false,
         status: "Error",
-        message: "Name and description are required.",
+        message: "Name, description, and key are required.",
       });
     }
 
-    const newService = new Service({ name, description });
+    // Check for existing service with the same key
+    const existingService = await Service.findOne({ key });
+    if (existingService) {
+      return res.status(400).json({
+        ok: false,
+        status: "Error",
+        message: "Service key already exists.",
+      });
+    }
+
+    // Create and save new service
+    const newService = new Service({ name, description, key });
     await newService.save();
 
     return res.status(201).json({
@@ -535,11 +547,63 @@ export const editService = async (req: any, res: any) => {
   }
 };
 
+export const getAllServices = async (req: any, res: any) => {
+  try {
+    const { search, page = 1, limit = 4 } = req.query;
+    const query: any = {};
+
+    // Combined search for name OR email
+    if (search) {
+      query.$or = [
+        { key: { $regex: search, $options: "i" } },
+        { name: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Single query with combined search
+    const [services, totalRecords] = await Promise.all([
+      Service.find(query)
+        .select("_id name description key createdAt")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      Service.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / Number(limit));
+
+    return res.status(200).json({
+      ok: true,
+      status: "Success",
+      message: "Clients retrieved successfully",
+      data: {
+        services,
+        pagination: {
+          currentPage: Number(page),
+          totalPages,
+          totalRecords,
+          hasNextPage: Number(page) < totalPages,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error searching clients:", error);
+    return res.status(500).json({
+      ok: false,
+      status: "Error",
+      message: "Error retrieving clients",
+      error: process.env.NODE_ENV === "development" ? error : undefined,
+    });
+  }
+};
 // Delete a service
 export const deleteService = async (req: any, res: any) => {
   try {
     const { serviceId } = req.body;
-
+    console.log(serviceId);
     const service = await Service.findByIdAndDelete(serviceId);
 
     if (!service) {
