@@ -161,7 +161,7 @@ export const addToken = async (req: any, res: any) => {
 // Change Password Function
 export const changePassword = async (req: CustomRequest, res: any) => {
   try {
-    const userId = req.user?.profile.id; // Extract user ID from req.user
+    const userId = req.user?.id; // Extract user ID from req.user
     const { oldPassword, newPassword, confirmNewPassword } = req.body;
 
     // Check if new password and confirm password match
