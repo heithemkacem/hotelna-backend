@@ -22,6 +22,11 @@ export interface IProfile extends Document {
   expoPushToken: string;
   blocked: boolean;
   source: string;
+  notification: boolean;
+  emailNotification: boolean;
+  bookingUpdate: boolean;
+  newMessage: boolean;
+  marketing: boolean;
 }
 const profileSchema = new Schema<IProfile>({
   email: { type: String, required: true, unique: true },
@@ -29,6 +34,11 @@ const profileSchema = new Schema<IProfile>({
   password: { type: String },
   phone: { type: String },
   isPhoneVerified: { type: Boolean, default: false },
+  notification: { type: Boolean, default: false },
+  emailNotification: { type: Boolean, default: false },
+  bookingUpdate: { type: Boolean, default: false },
+  newMessage: { type: Boolean, default: false },
+  marketing: { type: Boolean, default: false },
   type: {
     type: String,
     enum: ["client", "hotel", "admin"],

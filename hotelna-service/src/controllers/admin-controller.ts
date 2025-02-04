@@ -21,6 +21,7 @@ import config from "../config/config";
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "../config/aws";
 import ImageModel from "../database/models/images/Images";
+import mongoose from "mongoose";
 export const getHotels = async (req: Request, res: Response) => {
   try {
     const {
@@ -503,27 +504,22 @@ export const createService = async (req: any, res: any) => {
     });
   }
 };
-
-// Edit an existing service
 export const editService = async (req: any, res: any) => {
   try {
-    const { name, description, serviceId } = req.body;
+    const { name, description, serviceId, key } = req.body;
 
-    if (!name || !description) {
+    // Validate required fields
+    if (!name || !description || !serviceId || !key) {
       return res.status(400).json({
         ok: false,
         status: "Error",
-        message: "Name and description are required.",
+        message: "All fields (name, description, serviceId, key) are required.",
       });
     }
 
-    const service = await Service.findByIdAndUpdate(
-      serviceId,
-      { name, description },
-      { new: true } // Return the updated service
-    );
-
-    if (!service) {
+    // Check if service exists
+    const existingService = await Service.findById(serviceId);
+    if (!existingService) {
       return res.status(404).json({
         ok: false,
         status: "Error",
@@ -531,18 +527,42 @@ export const editService = async (req: any, res: any) => {
       });
     }
 
+    // Key change validation
+    if (key !== existingService.key) {
+      // Check for duplicate key in other services
+      const duplicateService = await Service.findOne({
+        key: key,
+        _id: { $ne: serviceId }, // Exclude current service
+      });
+
+      if (duplicateService) {
+        return res.status(409).json({
+          ok: false,
+          status: "Error",
+          message: "Service key already exists. Please use a unique key.",
+        });
+      }
+    }
+
+    // Update the service
+    const updatedService = await Service.findByIdAndUpdate(
+      serviceId,
+      { name, description, key },
+      { new: true }
+    );
+
     return res.status(200).json({
       ok: true,
       status: "Success",
       message: "Service updated successfully.",
-      data: service,
+      data: updatedService,
     });
   } catch (error) {
     console.error("Error editing service:", error);
     return res.status(500).json({
       ok: false,
       status: "Error",
-      message: "Failed to edit service.",
+      message: "Internal server error while updating service.",
     });
   }
 };
@@ -599,6 +619,49 @@ export const getAllServices = async (req: any, res: any) => {
     });
   }
 };
+
+export const getSingleService = async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ID format
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        status: "Bad Request",
+        message: "Invalid service ID ",
+      });
+    }
+
+    // Find service by ID with selected fields
+    const service = await Service.findById(id)
+      .select("_id name description key createdAt")
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        ok: false,
+        status: "Not Found",
+        message: "Service not found",
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      status: "Success",
+      message: "Service retrieved successfully",
+      data: service,
+    });
+  } catch (error) {
+    console.error("Error retrieving service:", error);
+    return res.status(500).json({
+      ok: false,
+      status: "Error",
+      message: "Error retrieving service",
+      error: process.env.NODE_ENV === "development" ? error : undefined,
+    });
+  }
+};
 // Delete a service
 export const deleteService = async (req: any, res: any) => {
   try {
@@ -651,6 +714,8 @@ export const createAdminUser = async () => {
       isVerified: true,
       phone: "+21625711161",
       isPhoneVerified: true,
+      source: "BACKEND",
+      name: "Hotelna Admin",
     });
     await profile.save();
     const admin: IAdmin = new Admin({

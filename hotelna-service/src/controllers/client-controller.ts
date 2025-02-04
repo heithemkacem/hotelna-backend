@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import bcrypt from "bcrypt";
+
 import { Profile, Client, Hotel, IHotel, IClient, Service } from "../database";
 import { successResponse, errorResponse } from "../utils";
 import { CustomRequest } from "./types";
@@ -7,49 +7,8 @@ import mongoose from "mongoose";
 import ServiceRequest from "../database/models/serive-request/service-request";
 import ExpoPushToken from "../database/models/push-token/push-token";
 
-// Change Password Function
-const changePassword = async (req: CustomRequest, res: any) => {
-  try {
-    const userId = req.user?.profile.id; // Extract user ID from req.user
-    const { newPassword, confirmNewPassword } = req.body;
-
-    // Check if new password and confirm password match
-    if (newPassword !== confirmNewPassword) {
-      return errorResponse(
-        res,
-        "New password and confirm password do not match.",
-        400
-      );
-    }
-
-    // Find the profile and update the password
-    const profile = await Profile.findById(userId);
-    if (!profile) {
-      return errorResponse(res, "User not found.", 404);
-    }
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update the password in the database
-    profile.password = hashedPassword;
-    await profile.save();
-
-    // Update the login history in the Client model
-
-    const historyMessage: any = `Password changed on ${new Date().toISOString()}`;
-    profile.loginHistory.push(historyMessage);
-    await profile.save();
-
-    return successResponse(res, "Password changed successfully.");
-  } catch (error) {
-    console.error("Error changing password:", error);
-    return errorResponse(res, "Failed to change password.", 500);
-  }
-};
-
 // View Login History Function
-const viewLoginHistory = async (
+export const viewLoginHistory = async (
   req: any,
   res: Response,
   next: NextFunction
@@ -74,7 +33,7 @@ const viewLoginHistory = async (
     return errorResponse(res, "Failed to retrieve login history.", 500);
   }
 };
-const enterHotel = async (req: any, res: Response) => {
+export const enterHotel = async (req: any, res: Response) => {
   try {
     const { hotelKey } = req.body;
     const userId = req.user?.client_id; // Get the user ID from the middleware
@@ -251,7 +210,7 @@ export const searchPeopleInSameHotel = async (req: any, res: Response) => {
     return errorResponse(res, error.message || "Server error", 500);
   }
 };
-const getClientDetails = async (req: Request, res: Response) => {
+export const getClientDetails = async (req: Request, res: Response) => {
   try {
     // Extract clientId from the request body
     const { clientId } = req.body;
@@ -287,76 +246,4 @@ const getClientDetails = async (req: Request, res: Response) => {
   } catch (error: any) {
     return errorResponse(res, error.message || "Server error", 500);
   }
-};
-export const addToken = async (req: Request, res: Response) => {
-  try {
-    const { expoPushToken, type, device_id, device_type } = req.body;
-    let user: any = req.user;
-
-    // Validate inputs
-    if (!expoPushToken || !type || !device_id || !device_type) {
-      return errorResponse(
-        res,
-        "All fields are required: expoPushToken, type, device_id, and device_type",
-        400
-      );
-    }
-
-    // Ensure the user has the proper role
-    const validTypes = ["hotel", "client", "admin"];
-    if (!validTypes.includes(type)) {
-      return errorResponse(
-        res,
-        "Invalid type. Must be one of: hotel, client, admin",
-        400
-      );
-    }
-
-    // Check if the token already exists
-    const existingToken = await ExpoPushToken.findOne({
-      expoPushToken: expoPushToken,
-    });
-    if (existingToken) {
-      return successResponse(res, "Token already exists", {
-        token: existingToken,
-      });
-    }
-
-    // Check if a token exists for the device_id and deactivate it
-    await ExpoPushToken.updateMany(
-      { device_id, active: true },
-      { $set: { active: false } }
-    );
-
-    // Create a new token
-    const newToken = new ExpoPushToken({
-      expoPushToken,
-      type,
-      active: true,
-      device_id,
-      device_type,
-    });
-
-    await newToken.save();
-    // notification: true,
-    // emailNotification: true,
-    // bookingUpdate: true,
-    // newMessage: true,
-    // marketing: true,
-    return successResponse(res, "Expo push token added successfully", {
-      token: newToken,
-    });
-  } catch (error: any) {
-    console.log(error);
-    return errorResponse(res, error.message || "Server error", 500);
-  }
-};
-
-export default {
-  changePassword,
-  viewLoginHistory,
-  enterHotel,
-  requestService,
-  getClientDetails,
-  addToken,
 };

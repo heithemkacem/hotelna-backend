@@ -173,6 +173,7 @@ const login = async (req: Request, res: Response) => {
       action: "login",
       date: new Date().toISOString(),
     });
+    profile.save();
     // Create JWT token and send it in a cookie
     const token = await createSendToken(profile, user, res);
 
@@ -229,6 +230,7 @@ const loginGoogle = async (req: Request, res: Response) => {
         source: "google",
         isVerified: email_verified,
       });
+
       await profile.save();
 
       client.profile = profile._id as unknown as mongoose.Types.ObjectId;
@@ -249,6 +251,11 @@ const loginGoogle = async (req: Request, res: Response) => {
     }
 
     const token = await createSendToken(profile, client, res);
+    profile.loginHistory.unshift({
+      action: "password-change",
+      date: new Date().toISOString(),
+    });
+    profile.save();
     return successResponse(res, "Google login successful", {
       token,
       role: client.current_hotel ? "client" : "client-no-hotel",
@@ -313,7 +320,11 @@ const loginFB = async (req: Request, res: Response) => {
       });
     }
     const token = await createSendToken(profile, client, res);
-
+    profile.loginHistory.unshift({
+      action: "password-change",
+      date: new Date().toISOString(),
+    });
+    profile.save();
     return successResponse(res, "Google login successful", {
       token,
       role: client.current_hotel ? "client" : "client-no-hotel",
